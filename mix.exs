@@ -1,12 +1,15 @@
 defmodule LgbmEx.MixProject do
   use Mix.Project
 
+  @version "0.1.0"
+
   def project do
     [
       app: :lgbm_ex,
-      version: "0.1.0",
+      version: @version,
       elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
+      compilers: [:elixir_make] ++ Mix.compilers(),
       deps: deps()
     ]
   end
@@ -23,6 +26,7 @@ defmodule LgbmEx.MixProject do
     [
       # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
+      {:elixir_make, "~> 0.4", runtime: false}
     ]
   end
 end
