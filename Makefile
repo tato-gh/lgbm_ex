@@ -20,8 +20,10 @@ PRIV_DIR = $(MIX_APP_PATH)/priv
 LGBM_EX_DIR = $(realpath c_src/)
 LGBM_EX_CACHE_SO = cache/liblgbmex.so
 LGBM_EX_CACHE_LIB_DIR = cache/lib
+LGBM_EX_CACHE_BIN_DIR = cache/lib/bin
 LGBM_EX_SO = $(PRIV_DIR)/liblgbmex.so
 LGBM_EX_LIB_DIR = $(PRIV_DIR)/lib
+LGBM_EX_BIN_DIR = $(PRIV_DIR)/bin
 
 # Build Flags
 C_SRCS = $(wildcard $(LGBM_EX_DIR)/*.cpp) $(wildcard $(LGBM_EX_DIR)/include/*.h)
@@ -40,6 +42,7 @@ POST_INSTALL = $(NOOP)
 $(LGBM_EX_SO): $(LGBM_EX_CACHE_SO)
 	@ mkdir -p $(PRIV_DIR)
 	cp -a $(abspath $(LGBM_EX_CACHE_LIB_DIR)) $(LGBM_EX_LIB_DIR) ; \
+	cp -a $(abspath $(LGBM_EX_CACHE_BIN_DIR)) $(LGBM_EX_BIN_DIR) ; \
 	cp -a $(abspath $(LGBM_EX_CACHE_SO)) $(LGBM_EX_SO) ;
 
 # Make LgbmEx library
