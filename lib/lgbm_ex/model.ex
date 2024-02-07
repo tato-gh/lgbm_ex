@@ -25,6 +25,15 @@ defmodule LgbmEx.Model do
     Map.update!(model, :parameters, & Keyword.merge(&1, custom_parameters))
   end
 
+  @doc """
+  TODO
+  """
+  def with_validation(model) do
+    Map.update!(model, :parameters, & Keyword.merge(&1, [
+      valid_data: model.files.validation
+    ]))
+  end
+
   defp put_files(model) do
     dir = Path.join(model.workdir, model.name)
 

@@ -1,5 +1,11 @@
 defmodule LgbmEx.ParameterFile do
   @moduledoc """
+    model = Model.merge_parameters(model, parameters)
+    TrainFile.write_data(model.files.train, x, y)
+    ParameterFile.write(model.files.parameter, model.parameters)
+    {num_iterations, learning_steps} = LightGBM.train(model)
+
+    {model, num_iterations, learning_steps}
   TODO
   """
 

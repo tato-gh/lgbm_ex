@@ -8,15 +8,15 @@ defmodule LgbmEx.LightGBM do
   """
   def train(model) do
     {output_log, 0} = System.shell(get_cmd() <> " config=#{model.files.parameter}")
-    parse_output_log(output_log)
+    parse_output_log(output_log, Keyword.get(model.parameters, :metric))
   end
 
-  defp parse_output_log(log) do
+  defp parse_output_log(log, metric) do
     # heuristic logic, good luck!
     log
     |> String.split("\n")
     |> Enum.map_reduce(0, fn row, acc ->
-      score = parse_score(row)
+      score = parse_score(row, metric)
       iteration = parse_iteration(row)
 
       case {score, iteration} do
@@ -38,8 +38,8 @@ defmodule LgbmEx.LightGBM do
     end)
   end
 
-  defp parse_score(row) do
-    Regex.scan(~r/score ([-\.\d]+)/, row)
+  defp parse_score(row, metric) do
+    Regex.scan(~r/#{metric} : ([-\.\d]+)/, row)
     |> case do
       [[_, matched]] -> String.to_float(matched)
       [] -> nil
