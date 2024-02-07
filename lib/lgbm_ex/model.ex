@@ -4,15 +4,32 @@ defmodule LgbmEx.Model do
 
   defstruct [:workdir, :name, :files, :parameters]
 
+  @first_name "cache"
+
   @doc """
   model with cache directory
   """
-  def cache_model(workdir) do
-    name = "cache"
-
-    %__MODULE__{workdir: workdir, name: name}
+  def new_model(workdir) do
+    %__MODULE__{workdir: workdir, name: @first_name}
     |> put_files()
     |> put_parameters()
+  end
+
+  @doc """
+  copy model with given name directory
+  """
+  def copy_model(model, name) do
+    dest_dir = Path.join(model.workdir, name)
+
+    File.mkdir_p(dest_dir)
+    Enum.each(model.files, fn {_key, src_file} ->
+      dest_file = Path.join(dest_dir, Path.basename(src_file))
+      File.cp(src_file, dest_file, on_conflict: fn _, _ -> true end)
+    end)
+
+    model
+    |> Map.put(:name, name)
+    |> put_files()
   end
 
   @doc """
@@ -37,8 +54,10 @@ defmodule LgbmEx.Model do
   defp put_files(model) do
     dir = Path.join(model.workdir, model.name)
 
-    File.rm_rf(dir)
-    File.mkdir_p(dir)
+    if model.name == @first_name do
+      File.rm_rf(dir)
+      File.mkdir_p(dir)
+    end
 
     Map.put(model, :files, %{
       model: Path.join(dir, "model.txt"),

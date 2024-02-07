@@ -38,5 +38,21 @@ defmodule LgbmExTest do
       assert hd(learning_steps) == {0, 0.939663}
     end
   end
+
+  describe "save_as" do
+    @describetag :tmp_dir
+
+    test "returns model saved", %{
+      tmp_dir: tmp_dir
+    } do
+      {x, y} = SampleDataIris.train_set()
+      parameters = SampleDataIris.parameters()
+      model = LgbmEx.new_model(tmp_dir)
+      {model, _, _} = LgbmEx.fit(model, x, y, parameters)
+
+      saved_model = LgbmEx.save_as(model, "hoge")
+      assert File.exists?(saved_model.files.model)
+    end
+  end
 end
 

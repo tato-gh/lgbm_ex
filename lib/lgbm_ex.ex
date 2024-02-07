@@ -12,7 +12,7 @@ defmodule LgbmEx do
   Returns new model struct work in workdir/cache.
   """
   def new_model(workdir) do
-    Model.cache_model(workdir)
+    Model.new_model(workdir)
   end
 
   @doc """
@@ -39,5 +39,12 @@ defmodule LgbmEx do
 
     {num_iterations, learning_steps} = LightGBM.train(model)
     {model, num_iterations, learning_steps}
+  end
+
+  @doc """
+  Save model.
+  """
+  def save_as(model, name) do
+    Model.copy_model(model, name)
   end
 end
