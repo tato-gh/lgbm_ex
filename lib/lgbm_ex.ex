@@ -4,8 +4,8 @@ defmodule LgbmEx do
   """
 
   alias LgbmEx.Model
-  alias LgbmEx.TrainFile
-  alias LgbmEx.ParameterFile
+  alias LgbmEx.Train
+  alias LgbmEx.Parameter
   alias LgbmEx.LightGBM
 
   @doc """
@@ -24,9 +24,9 @@ defmodule LgbmEx do
       |> Model.merge_parameters(parameters)
       |> Model.with_validation()
 
-    TrainFile.write_data(model.files.train, x_train, y_train)
-    TrainFile.write_data(model.files.validation, x_val, y_val)
-    ParameterFile.write(model.files.parameter, model.parameters)
+    Train.write_data(model.files.train, x_train, y_train)
+    Train.write_data(model.files.validation, x_val, y_val)
+    Parameter.write_data(model.files.parameter, model.parameters)
 
     {num_iterations, learning_steps} = LightGBM.train(model)
     {model, num_iterations, learning_steps}
@@ -34,8 +34,19 @@ defmodule LgbmEx do
 
   def fit(model, x, y, parameters) do
     model = Model.merge_parameters(model, parameters)
-    TrainFile.write_data(model.files.train, x, y)
-    ParameterFile.write(model.files.parameter, model.parameters)
+    Train.write_data(model.files.train, x, y)
+    Parameter.write_data(model.files.parameter, model.parameters)
+
+    {num_iterations, learning_steps} = LightGBM.train(model)
+    {model, num_iterations, learning_steps}
+  end
+
+  @doc """
+  Fit to existing data with given parameters
+  """
+  def refit(model, parameters) do
+    model = Model.merge_parameters(model, parameters)
+    Parameter.write_data(model.files.parameter, model.parameters)
 
     {num_iterations, learning_steps} = LightGBM.train(model)
     {model, num_iterations, learning_steps}
@@ -46,5 +57,14 @@ defmodule LgbmEx do
   """
   def save_as(model, name) do
     Model.copy_model(model, name)
+  end
+
+  @doc """
+  Load model from given workdir and name
+  """
+  def load_model(workdir, name) do
+    model = Model.load_model(workdir, name)
+    parameters = Parameter.read_data(model.files.parameter)
+    Map.put(model, :parameters, parameters)
   end
 end

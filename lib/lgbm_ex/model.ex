@@ -7,12 +7,20 @@ defmodule LgbmEx.Model do
   @first_name "cache"
 
   @doc """
-  model with cache directory
+  Model with cache directory
   """
   def new_model(workdir) do
     %__MODULE__{workdir: workdir, name: @first_name}
     |> put_files()
     |> put_parameters()
+  end
+
+  @doc """
+  Model with given directory
+  """
+  def load_model(workdir, name) do
+    %__MODULE__{workdir: workdir, name: name}
+    |> put_files()
   end
 
   @doc """

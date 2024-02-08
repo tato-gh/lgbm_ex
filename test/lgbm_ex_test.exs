@@ -39,6 +39,23 @@ defmodule LgbmExTest do
     end
   end
 
+  describe "refit" do
+    @describetag :tmp_dir
+
+    test "returns result by given new parameters", %{
+      tmp_dir: tmp_dir
+    } do
+      {x, y} = SampleDataIris.train_set()
+      parameters = SampleDataIris.parameters()
+
+      model = LgbmEx.new_model(tmp_dir)
+      {model, _num_iterations, _learning_steps} = LgbmEx.fit(model, x, y, parameters)
+
+      {_model, num_iterations, _learning_steps} = LgbmEx.refit(model, num_iterations: 2)
+      assert num_iterations == 2
+    end
+  end
+
   describe "save_as" do
     @describetag :tmp_dir
 
@@ -52,6 +69,26 @@ defmodule LgbmExTest do
 
       saved_model = LgbmEx.save_as(model, "hoge")
       assert File.exists?(saved_model.files.model)
+    end
+  end
+
+  describe "load_model" do
+    @describetag :tmp_dir
+
+    setup %{tmp_dir: tmp_dir} do
+      {x, y} = SampleDataIris.train_set()
+      parameters = SampleDataIris.parameters()
+      model = LgbmEx.new_model(tmp_dir)
+      {model, _, _} = LgbmEx.fit(model, x, y, parameters)
+      LgbmEx.save_as(model, "hoge")
+      :ok
+    end
+
+    test "returns model loaded", %{
+      tmp_dir: tmp_dir
+    } do
+      loaded_model = LgbmEx.load_model(tmp_dir, "hoge")
+      assert %{metric: "multi_logloss"} = Map.new(loaded_model.parameters)
     end
   end
 end

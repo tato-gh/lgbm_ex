@@ -1,4 +1,4 @@
-defmodule LgbmEx.TrainFile do
+defmodule LgbmEx.Train do
   @moduledoc """
   TODO
   """
