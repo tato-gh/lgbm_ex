@@ -4,6 +4,15 @@ defmodule LgbmExTest do
 
   alias LgbmEx.SampleDataIris
 
+  def setup_iris_model(%{tmp_dir: tmp_dir}) do
+    {x, y} = SampleDataIris.train_set()
+    parameters = SampleDataIris.parameters()
+    model = LgbmEx.new_model(tmp_dir)
+    {model, _, _} = LgbmEx.fit(model, x, y, parameters)
+    LgbmEx.save_as(model, "iris")
+    :ok
+  end
+
   describe "fit" do
     @describetag :tmp_dir
 
@@ -67,7 +76,7 @@ defmodule LgbmExTest do
       model = LgbmEx.new_model(tmp_dir)
       {model, _, _} = LgbmEx.fit(model, x, y, parameters)
 
-      saved_model = LgbmEx.save_as(model, "hoge")
+      saved_model = LgbmEx.save_as(model, "iris")
       assert File.exists?(saved_model.files.model)
     end
   end
@@ -75,21 +84,32 @@ defmodule LgbmExTest do
   describe "load_model" do
     @describetag :tmp_dir
 
-    setup %{tmp_dir: tmp_dir} do
-      {x, y} = SampleDataIris.train_set()
-      parameters = SampleDataIris.parameters()
-      model = LgbmEx.new_model(tmp_dir)
-      {model, _, _} = LgbmEx.fit(model, x, y, parameters)
-      LgbmEx.save_as(model, "hoge")
-      :ok
-    end
+    setup [:setup_iris_model]
 
     test "returns model loaded", %{
       tmp_dir: tmp_dir
     } do
-      loaded_model = LgbmEx.load_model(tmp_dir, "hoge")
+      loaded_model = LgbmEx.load_model(tmp_dir, "iris")
       assert %{metric: "multi_logloss"} = Map.new(loaded_model.parameters)
     end
   end
-end
 
+  describe "predict" do
+    @describetag :tmp_dir
+
+    setup [:setup_iris_model]
+
+    test "returns predicted values, case single x", %{
+      tmp_dir: tmp_dir
+    } do
+      model = LgbmEx.load_model(tmp_dir, "iris")
+      {x_test, _y} = SampleDataIris.test_set()
+      features = List.first(x_test)
+
+      [c1_prob, c2_prob, c3_prob] = LgbmEx.predict(model, features)
+      assert c1_prob >= 0.5
+      assert c2_prob >= 0.0
+      assert c3_prob >= 0.0
+    end
+  end
+end

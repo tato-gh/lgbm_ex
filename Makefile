@@ -26,7 +26,7 @@ LGBM_EX_LIB_DIR = $(PRIV_DIR)/lib
 LGBM_EX_BIN_DIR = $(PRIV_DIR)/bin
 
 # Build Flags
-C_SRCS = $(wildcard $(LGBM_EX_DIR)/*.cpp) $(wildcard $(LGBM_EX_DIR)/include/*.h)
+C_SRCS = $(wildcard $(LGBM_EX_DIR)/*.cpp) $(wildcard $(LGBM_EX_DIR)/include/*.hpp)
 
 CFLAGS = -I$(LGBM_EX_DIR)/include -I$(LGBM_DIR)/include -I$(LGBM_DIR) -I$(ERTS_INCLUDE_DIR) -std=c++17 -fpic -fpermissive --verbose -shared
 

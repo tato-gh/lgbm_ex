@@ -6,6 +6,7 @@ defmodule LgbmEx do
   alias LgbmEx.Model
   alias LgbmEx.Train
   alias LgbmEx.Parameter
+  alias LgbmEx.Prediction
   alias LgbmEx.LightGBM
 
   @doc """
@@ -66,5 +67,12 @@ defmodule LgbmEx do
     model = Model.load_model(workdir, name)
     parameters = Parameter.read_data(model.files.parameter)
     Map.put(model, :parameters, parameters)
+  end
+
+  @doc """
+  Predict value by model.
+  """
+  def predict(model, x) do
+    Prediction.predict(model, x)
   end
 end

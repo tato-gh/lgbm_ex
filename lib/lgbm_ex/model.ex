@@ -2,7 +2,7 @@ defmodule LgbmEx.Model do
   @moduledoc """
   """
 
-  defstruct [:workdir, :name, :files, :parameters]
+  defstruct [:workdir, :name, :files, :parameters, :ref]
 
   @first_name "cache"
 
