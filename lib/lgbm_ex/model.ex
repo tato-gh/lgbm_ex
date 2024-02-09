@@ -2,6 +2,8 @@ defmodule LgbmEx.Model do
   @moduledoc """
   """
 
+  alias LgbmEx.Interface
+
   defstruct [:workdir, :name, :files, :parameters, :ref]
 
   @first_name "cache"
@@ -12,7 +14,6 @@ defmodule LgbmEx.Model do
   def new_model(workdir) do
     %__MODULE__{workdir: workdir, name: @first_name}
     |> put_files()
-    |> put_parameters()
   end
 
   @doc """
@@ -21,6 +22,17 @@ defmodule LgbmEx.Model do
   def load_model(workdir, name) do
     %__MODULE__{workdir: workdir, name: name}
     |> put_files()
+  end
+
+  @doc """
+  Model setup before fit
+  """
+  def setup_model(model, parameters, options \\ []) do
+    model
+    |> clear_ref()
+    |> put_parameters()
+    |> merge_parameters(parameters)
+    |> maybe_with_validation(Keyword.get(options, :validation))
   end
 
   @doc """
@@ -53,11 +65,19 @@ defmodule LgbmEx.Model do
   @doc """
   TODO
   """
-  def with_validation(model) do
+  def maybe_with_validation(model, true) do
     Map.update!(model, :parameters, & Keyword.merge(&1, [
       valid_data: model.files.validation
     ]))
   end
+
+  def maybe_with_validation(model, false) do
+    Map.update!(model, :parameters, & Keyword.merge(&1, [
+      valid_data: nil
+    ]))
+  end
+
+  def maybe_with_validation(model, _), do: model
 
   defp put_files(model) do
     dir = Path.join(model.workdir, model.name)
@@ -83,5 +103,14 @@ defmodule LgbmEx.Model do
       label_column: 0,
       saved_feature_importance_type: 1
     ])
+  end
+
+  defp clear_ref(%{ref: nil} = model), do: model
+
+  defp clear_ref(%{ref: ref} = model) do
+    # メモリ開放
+    Interface.booster_free(ref)
+
+    Map.put(model, :ref, nil)
   end
 end

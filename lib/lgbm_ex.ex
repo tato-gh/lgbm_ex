@@ -20,11 +20,7 @@ defmodule LgbmEx do
   Fit model.
   """
   def fit(model, {x_train, x_val}, {y_train, y_val}, parameters) do
-    model =
-      model
-      |> Model.merge_parameters(parameters)
-      |> Model.with_validation()
-
+    model = Model.setup_model(model, parameters, validation: true)
     Train.write_data(model.files.train, x_train, y_train)
     Train.write_data(model.files.validation, x_val, y_val)
     Parameter.write_data(model.files.parameter, model.parameters)
@@ -34,7 +30,7 @@ defmodule LgbmEx do
   end
 
   def fit(model, x, y, parameters) do
-    model = Model.merge_parameters(model, parameters)
+    model = Model.setup_model(model, parameters, validation: false)
     Train.write_data(model.files.train, x, y)
     Parameter.write_data(model.files.parameter, model.parameters)
 
@@ -46,7 +42,8 @@ defmodule LgbmEx do
   Fit to existing data with given parameters
   """
   def refit(model, parameters) do
-    model = Model.merge_parameters(model, parameters)
+    parameters = Keyword.merge(model.parameters, parameters)
+    model = Model.setup_model(model, parameters)
     Parameter.write_data(model.files.parameter, model.parameters)
 
     {num_iterations, learning_steps} = LightGBM.train(model)

@@ -316,6 +316,13 @@ ERL_NIF_TERM booster_feature_importance(ErlNifEnv* env, int argc, const ERL_NIF_
   return enif_make_string(env, ret_j.dump().c_str(), ERL_NIF_LATIN1);
 }
 
+ERL_NIF_TERM booster_free(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
+  enif_free_env(env);
+
+  ERL_NIF_TERM ret = -1;
+  return ret;
+}
+
 static ErlNifFunc nif_funcs[] = {
   {"booster_create_from_model_file", 1, booster_create_from_model_file},
   {"booster_predict_for_mat_single_row", 2, booster_predict_for_mat_single_row},
@@ -324,6 +331,7 @@ static ErlNifFunc nif_funcs[] = {
   {"booster_get_current_iteration", 1, booster_get_current_iteration},
   {"booster_get_loaded_param", 1, booster_get_loaded_param},
   {"booster_feature_importance", 2, booster_feature_importance},
+  {"booster_free", 1, booster_free}
 };
 
 ERL_NIF_INIT(Elixir.LgbmEx.Interface, nif_funcs, nif_load, nullptr, nullptr, nullptr);

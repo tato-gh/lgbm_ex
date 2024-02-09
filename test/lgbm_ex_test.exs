@@ -63,6 +63,22 @@ defmodule LgbmExTest do
       {_model, num_iterations, _learning_steps} = LgbmEx.refit(model, num_iterations: 2)
       assert num_iterations == 2
     end
+
+    test "clears reference", %{
+      tmp_dir: tmp_dir
+    } do
+      {x, y} = SampleDataIris.train_set()
+      parameters = SampleDataIris.parameters()
+
+      model = LgbmEx.new_model(tmp_dir)
+      {model, _num_iterations, _learning_steps} = LgbmEx.fit(model, x, y, parameters)
+
+      {x_test, _y_test} = SampleDataIris.test_set()
+      LgbmEx.predict(model, x_test)
+
+      {model, _num_iterations, _learning_steps} = LgbmEx.refit(model, num_iterations: 2)
+      assert model.ref == nil
+    end
   end
 
   describe "save_as" do
