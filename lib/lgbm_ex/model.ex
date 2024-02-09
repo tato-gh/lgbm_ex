@@ -62,22 +62,19 @@ defmodule LgbmEx.Model do
     Map.update!(model, :parameters, & Keyword.merge(&1, custom_parameters))
   end
 
-  @doc """
-  TODO
-  """
-  def maybe_with_validation(model, true) do
+  defp maybe_with_validation(model, true) do
     Map.update!(model, :parameters, & Keyword.merge(&1, [
       valid_data: model.files.validation
     ]))
   end
 
-  def maybe_with_validation(model, false) do
+  defp maybe_with_validation(model, false) do
     Map.update!(model, :parameters, & Keyword.merge(&1, [
       valid_data: nil
     ]))
   end
 
-  def maybe_with_validation(model, _), do: model
+  defp maybe_with_validation(model, _), do: model
 
   defp put_files(model) do
     dir = Path.join(model.workdir, model.name)
