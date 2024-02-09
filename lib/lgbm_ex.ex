@@ -23,8 +23,8 @@ defmodule LgbmEx do
     ModelFile.write_data(model.files.validation, x_val, y_val)
     ModelFile.write_parameters(model.files.parameter, model.parameters)
 
-    {num_iterations, learning_steps} = LightGBM.train(model)
-    {model, num_iterations, learning_steps}
+    LightGBM.train(model)
+    |> Model.complement_model_attrs()
   end
 
   def fit(model, x, y, parameters) do
@@ -32,8 +32,8 @@ defmodule LgbmEx do
     ModelFile.write_data(model.files.train, x, y)
     ModelFile.write_parameters(model.files.parameter, model.parameters)
 
-    {num_iterations, learning_steps} = LightGBM.train(model)
-    {model, num_iterations, learning_steps}
+    LightGBM.train(model)
+    |> Model.complement_model_attrs()
   end
 
   @doc """
@@ -44,8 +44,8 @@ defmodule LgbmEx do
     model = Model.setup_model(model, parameters)
     ModelFile.write_parameters(model.files.parameter, model.parameters)
 
-    {num_iterations, learning_steps} = LightGBM.train(model)
-    {model, num_iterations, learning_steps}
+    LightGBM.train(model)
+    |> Model.complement_model_attrs()
   end
 
   @doc """
@@ -61,7 +61,9 @@ defmodule LgbmEx do
   def load_model(workdir, name) do
     model = Model.load_model(workdir, name)
     parameters = ModelFile.read_parameters(model.files.parameter)
+
     Map.put(model, :parameters, parameters)
+    |> Model.complement_model_attrs()
   end
 
   @doc """

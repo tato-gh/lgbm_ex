@@ -2,9 +2,22 @@ defmodule LgbmEx.Model do
   @moduledoc """
   """
 
-  alias LgbmEx.Interface
+  alias LgbmEx.NIFAPI
+  alias LgbmEx.ModelFile
 
-  defstruct [:workdir, :name, :files, :parameters, :ref]
+  defstruct [
+    :workdir,
+    :name,
+    :files,
+    :parameters,
+    :ref,
+    :num_iterations,
+    :learning_steps,
+    :used_parameters,
+    :num_classes,
+    :num_features,
+    :feature_importance
+  ]
 
   @first_name "cache"
 
@@ -17,14 +30,6 @@ defmodule LgbmEx.Model do
   end
 
   @doc """
-  Model with given directory
-  """
-  def load_model(workdir, name) do
-    %__MODULE__{workdir: workdir, name: name}
-    |> put_files()
-  end
-
-  @doc """
   Model setup before fit
   """
   def setup_model(model, parameters, options \\ []) do
@@ -33,6 +38,38 @@ defmodule LgbmEx.Model do
     |> put_parameters()
     |> merge_parameters(parameters)
     |> maybe_with_validation(Keyword.get(options, :validation))
+  end
+
+  @doc """
+  Model load from given workdir and name
+  """
+  def load_model(workdir, name) do
+    model =
+      %__MODULE__{workdir: workdir, name: name}
+      |> put_files()
+      |> load_parameters()
+
+    {:ok, ref} = NIFAPI.create_reference(model)
+
+    Map.put(model, :ref, ref)
+    |> complement_model_attrs()
+  end
+
+  @doc """
+  Model attrs set by NIF
+  """
+  def complement_model_attrs(%{ref: ref} = model) do
+    {num_iterations, learning_steps} =
+      ModelFile.parse_train_log(model.files.train_log, Keyword.get(model.parameters, :metric))
+
+    Map.merge(model, %{
+      num_iterations: num_iterations,
+      learning_steps: learning_steps,
+      used_parameters: NIFAPI.call(:booster_get_loaded_param, ref) |> Jason.decode!(),
+      num_classes: NIFAPI.call(:booster_get_num_classes, ref),
+      num_features: NIFAPI.call(:booster_get_num_features, ref),
+      feature_importance: NIFAPI.call(:booster_feature_importance, ref)
+    })
   end
 
   @doc """
@@ -88,7 +125,8 @@ defmodule LgbmEx.Model do
       model: Path.join(dir, "model.txt"),
       train: Path.join(dir, "train.csv"),
       validation: Path.join(dir, "validation.csv"),
-      parameter: Path.join(dir, "paramter.txt")
+      parameter: Path.join(dir, "paramter.txt"),
+      train_log: Path.join(dir, "train_log.txt")
     })
   end
 
@@ -102,12 +140,21 @@ defmodule LgbmEx.Model do
     ])
   end
 
-  defp clear_ref(%{ref: nil} = model), do: model
+  defp load_parameters(model) do
+    parameters = ModelFile.read_parameters(model.files.parameter)
 
-  defp clear_ref(%{ref: ref} = model) do
-    # メモリ開放
-    Interface.booster_free(ref)
-
-    Map.put(model, :ref, nil)
+    model
+    |> put_parameters()
+    |> merge_parameters(parameters)
   end
+
+  defp clear_ref(model), do: Map.put(model, :ref, nil)
+
+  # defp clear_ref(%{ref: nil} = model), do: model
+  #
+  # defp clear_ref(%{ref: ref} = model) do
+  #   NIFAPI.call(:booster_free, ref)
+  #   # => Segmentation fault
+  #   Map.put(model, :ref, nil)
+  # end
 end

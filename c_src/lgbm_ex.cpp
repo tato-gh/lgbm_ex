@@ -34,7 +34,7 @@ class LightGBMModel {
     }
 
     // LGBM_BoosterPredictForMatSingleRow
-    std::vector<double> booster_predict_for_mat_single_row(json row, int ncol, int num_classes) {
+    std::vector<double> booster_predict_for_mat_single_row(json row, int num_features, int num_classes) {
       int64_t *out_len = new int64_t();
       std::vector<double> out_result(num_classes, 0.0);
       std::vector<float> f_row;
@@ -56,7 +56,7 @@ class LightGBMModel {
           0,
           0,
           C_API_DTYPE_FLOAT32,
-          ncol,
+          num_features,
           "",
           &fastconfig_handle
         );
@@ -74,7 +74,7 @@ class LightGBMModel {
     }
 
     // LGBM_BoosterPredictForMat
-    std::vector<double> booster_predict_for_mat(json row, int nrow, int ncol, int num_classes) {
+    std::vector<double> booster_predict_for_mat(json row, int nrow, int num_features, int num_classes) {
       int64_t *out_len = new int64_t();
       std::vector<double> out_result(nrow * num_classes, 0.0);
       std::vector<float> f_row;
@@ -94,7 +94,7 @@ class LightGBMModel {
         f_row.data(),
         C_API_DTYPE_FLOAT32,
         nrow,
-        ncol,
+        num_features,
         1,
         C_API_PREDICT_NORMAL,
         0,
@@ -120,6 +120,19 @@ class LightGBMModel {
       return num_classes;
     }
 
+    // LGBM_BoosterGetNumFeatures
+    int booster_get_num_features() {
+      int result;
+      int num_features;
+
+      result = LGBM_BoosterGetNumFeature(
+        booster_handle,
+        &num_features
+      );
+
+      return num_features;
+    }
+
     // LGBM_BoosterGetCurrentIteration
     int booster_get_current_iteration() {
       int result;
@@ -135,15 +148,15 @@ class LightGBMModel {
 
     // LGBM_BoosterGetLoadedParam
     std::string booster_get_loaded_param() {
-      int64_t out_len = 0;
+      int64_t *out_len = new int64_t();
       int64_t buf_len = 1024 * 1024;
-      char out_str[buf_len];
+      char* out_str = (char*)malloc(buf_len * sizeof(char));
       int result;
 
       result = LGBM_BoosterGetLoadedParam(
         booster_handle,
         buf_len,
-        &out_len,
+        out_len,
         out_str
       );
 
@@ -151,8 +164,8 @@ class LightGBMModel {
     }
 
     // LGBM_BoosterFeatureImportance
-    std::vector<double> booster_feature_importance(int iteration, int ncol) {
-      std::vector<double> out_result(ncol, 0.0);
+    std::vector<double> booster_feature_importance(int iteration, int num_features) {
+      std::vector<double> out_result(num_features, 0.0);
       int result;
 
       result = LGBM_BoosterFeatureImportance(
@@ -243,13 +256,15 @@ ERL_NIF_TERM booster_predict_for_mat_single_row(ErlNifEnv* env, int argc, const 
   std::vector<double> result;
 
   int num_classes = model->booster_get_num_classes();
+  int num_features = model->booster_get_num_features();
   result = model->booster_predict_for_mat_single_row(
     j["row"],
-    j["ncol"],
+    num_features,
     num_classes
   );
 
   json ret_j;
+  ret_j["num_features"] = num_features;
   ret_j["result"] = result;
 
   return enif_make_string(env, ret_j.dump().c_str(), ERL_NIF_LATIN1);
@@ -262,15 +277,17 @@ ERL_NIF_TERM booster_predict_for_mat(ErlNifEnv* env, int argc, const ERL_NIF_TER
   std::vector<double> result;
 
   int num_classes = model->booster_get_num_classes();
+  int num_features = model->booster_get_num_features();
   result = model->booster_predict_for_mat(
     j["row"],
     j["nrow"],
-    j["ncol"],
+    num_features,
     num_classes
   );
 
   json ret_j;
   ret_j["num_classes"] = num_classes;
+  ret_j["num_features"] = num_features;
   ret_j["result"] = split_vector(result, j["nrow"], num_classes);
 
   return enif_make_string(env, ret_j.dump().c_str(), ERL_NIF_LATIN1);
@@ -281,7 +298,21 @@ ERL_NIF_TERM booster_get_num_classes(ErlNifEnv* env, int argc, const ERL_NIF_TER
 
   int result = model->booster_get_num_classes();
 
-  return enif_make_int(env, result);
+  json ret_j;
+  ret_j["result"] = result;
+
+  return enif_make_string(env, ret_j.dump().c_str(), ERL_NIF_LATIN1);
+}
+
+ERL_NIF_TERM booster_get_num_features(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
+  LightGBMModel* model = load_model(env, argv[0]);
+
+  int result = model->booster_get_num_features();
+
+  json ret_j;
+  ret_j["result"] = result;
+
+  return enif_make_string(env, ret_j.dump().c_str(), ERL_NIF_LATIN1);
 }
 
 ERL_NIF_TERM booster_get_current_iteration(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
@@ -289,7 +320,10 @@ ERL_NIF_TERM booster_get_current_iteration(ErlNifEnv* env, int argc, const ERL_N
 
   int result = model->booster_get_current_iteration();
 
-  return enif_make_int(env, result);
+  json ret_j;
+  ret_j["result"] = result;
+
+  return enif_make_string(env, ret_j.dump().c_str(), ERL_NIF_LATIN1);
 }
 
 ERL_NIF_TERM booster_get_loaded_param(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
@@ -297,20 +331,23 @@ ERL_NIF_TERM booster_get_loaded_param(ErlNifEnv* env, int argc, const ERL_NIF_TE
 
   std::string result = model->booster_get_loaded_param();
 
-  return enif_make_string(env, result.c_str(), ERL_NIF_LATIN1);
+  json ret_j;
+  ret_j["result"] = result;
+
+  return enif_make_string(env, ret_j.dump().c_str(), ERL_NIF_LATIN1);
 }
 
 ERL_NIF_TERM booster_feature_importance(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
   LightGBMModel* model = load_model(env, argv[0]);
-  int ncol;
-  enif_get_int(env, argv[1], &ncol);
+  int num_features = model->booster_get_num_features();
 
   std::vector<double> result;
   int iteration = model->booster_get_current_iteration();
-  result = model->booster_feature_importance(iteration, ncol);
+  result = model->booster_feature_importance(iteration, num_features);
 
   json ret_j;
   ret_j["iteration"] = iteration;
+  ret_j["num_features"] = num_features;
   ret_j["result"] = result;
 
   return enif_make_string(env, ret_j.dump().c_str(), ERL_NIF_LATIN1);
@@ -328,9 +365,10 @@ static ErlNifFunc nif_funcs[] = {
   {"booster_predict_for_mat_single_row", 2, booster_predict_for_mat_single_row},
   {"booster_predict_for_mat", 2, booster_predict_for_mat},
   {"booster_get_num_classes", 1, booster_get_num_classes},
+  {"booster_get_num_features", 1, booster_get_num_features},
   {"booster_get_current_iteration", 1, booster_get_current_iteration},
   {"booster_get_loaded_param", 1, booster_get_loaded_param},
-  {"booster_feature_importance", 2, booster_feature_importance},
+  {"booster_feature_importance", 1, booster_feature_importance},
   {"booster_free", 1, booster_free}
 };
 

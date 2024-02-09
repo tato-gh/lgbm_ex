@@ -36,6 +36,11 @@ defmodule LgbmEx.NIF do
   def booster_get_num_classes(_reference), do: :erlang.nif_error(:nif_not_loaded)
 
   @doc """
+  Get booster num of features.
+  """
+  def booster_get_num_features(_reference), do: :erlang.nif_error(:nif_not_loaded)
+
+  @doc """
   Get booster current iterations.
   """
   def booster_get_current_iteration(_reference), do: :erlang.nif_error(:nif_not_loaded)
@@ -50,8 +55,7 @@ defmodule LgbmEx.NIF do
   Get booster feature importance
   Returns result as charlist.
   """
-  def booster_feature_importance(_reference, _num_features), do: :erlang.nif_error(:nif_not_loaded)
-
+  def booster_feature_importance(_reference), do: :erlang.nif_error(:nif_not_loaded)
 
   @doc """
   Free booster.

@@ -5,7 +5,19 @@ defmodule LgbmEx.NIFAPI do
 
   alias LgbmEx.NIF
 
-  def call(action, ref, attrs) do
+  def call(action, ref) do
+    apply(NIF, action, [ref])
+    |> decode_json_charlist()
+    |> Map.get("result")
+  end
+
+  def call(action, ref, args) when is_list(args) do
+    apply(NIF, action, [ref] ++ args)
+    |> decode_json_charlist()
+    |> Map.get("result")
+  end
+
+  def call(action, ref, attrs) when is_map(attrs) do
     args = encode_to_json_charlist(attrs)
 
     apply(NIF, action, [ref, args])
