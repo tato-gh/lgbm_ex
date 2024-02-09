@@ -1,4 +1,4 @@
-defmodule LgbmEx.Interface do
+defmodule LgbmEx.NIF do
   @moduledoc """
   Nif interface.
   """

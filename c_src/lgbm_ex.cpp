@@ -334,4 +334,4 @@ static ErlNifFunc nif_funcs[] = {
   {"booster_free", 1, booster_free}
 };
 
-ERL_NIF_INIT(Elixir.LgbmEx.Interface, nif_funcs, nif_load, nullptr, nullptr, nullptr);
+ERL_NIF_INIT(Elixir.LgbmEx.NIF, nif_funcs, nif_load, nullptr, nullptr, nullptr);
