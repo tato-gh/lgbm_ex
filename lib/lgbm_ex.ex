@@ -5,7 +5,6 @@ defmodule LgbmEx do
 
   alias LgbmEx.Model
   alias LgbmEx.ModelFile
-  alias LgbmEx.Prediction
   alias LgbmEx.LightGBM
 
   @doc """
@@ -69,6 +68,6 @@ defmodule LgbmEx do
   Predict value by model.
   """
   def predict(model, x) do
-    Prediction.predict(model, x)
+    LightGBM.predict(model, x)
   end
 end
