@@ -24,6 +24,19 @@ defmodule LgbmEx.Prediction do
     |> Map.get("result")
   end
 
+  def predict(model, x) do
+    # multi target
+    json_arg = encode_to_json_charlist(%{
+      row: List.flatten(x),
+      ncol: hd(x) |> Enum.count(),
+      nrow: Enum.count(x)
+    })
+
+    Interface.booster_predict_for_mat(model.ref, json_arg)
+    |> decode_json_charlist()
+    |> Map.get("result")
+  end
+
   defp create_reference(%{files: %{model: file_path}}) do
     args = encode_to_json_charlist(%{file: file_path})
     Interface.booster_create_from_model_file(args)

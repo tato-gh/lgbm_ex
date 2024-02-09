@@ -111,5 +111,18 @@ defmodule LgbmExTest do
       assert c2_prob >= 0.0
       assert c3_prob >= 0.0
     end
+
+    test "returns predicted values, case multi x", %{
+      tmp_dir: tmp_dir
+    } do
+      model = LgbmEx.load_model(tmp_dir, "iris")
+      {x_test, _y} = SampleDataIris.test_set()
+
+      [[c1_prob, c2_prob, c3_prob] | _] = results = LgbmEx.predict(model, x_test)
+      assert c1_prob >= 0.5
+      assert c2_prob >= 0.0
+      assert c3_prob >= 0.0
+      assert Enum.count(results) == Enum.count(x_test)
+    end
   end
 end
