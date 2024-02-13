@@ -49,6 +49,13 @@ defmodule LgbmEx do
   end
 
   @doc """
+  Predict value by model.
+  """
+  def predict(model, x) do
+    LightGBM.predict(model, x)
+  end
+
+  @doc """
   Save model.
   """
   def save_as(model, name) do
@@ -67,9 +74,31 @@ defmodule LgbmEx do
   end
 
   @doc """
-  Predict value by model.
+  Export model as zip.
   """
-  def predict(model, x) do
-    LightGBM.predict(model, x)
+  def dump_zip(model) do
+    dir = Path.join(model.workdir, model.name)
+    model_files = Enum.map(model.files, & Path.basename(elem(&1, 1))) |> MapSet.new()
+    existing_files = File.ls!(dir) |> MapSet.new()
+
+    files = MapSet.intersection(model_files, existing_files)
+            |> MapSet.to_list()
+            |> Enum.map(& String.to_charlist/1)
+
+    tmp_dir = System.tmp_dir!()
+    zip_name = Path.join(tmp_dir, model.name <> ".zip") |> String.to_charlist()
+
+    {:ok, zip_file_path} = :zip.create(zip_name, files, cwd: dir)
+    List.to_string(zip_file_path)
+  end
+
+  @doc """
+  Build model from zip.
+  """
+  def from_zip(zip_path, workdir, name) do
+    zip_path = String.to_charlist(zip_path)
+    dir = Path.join(workdir, name) |> String.to_charlist()
+    :zip.extract(zip_path, cwd: dir)
+    load_model(workdir, name)
   end
 end
