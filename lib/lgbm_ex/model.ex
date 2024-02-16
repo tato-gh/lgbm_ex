@@ -90,6 +90,31 @@ defmodule LgbmEx.Model do
   end
 
   @doc """
+  copy model to sub directory with given name. Data files are copied by hard link.
+  """
+  def copy_model_as_sub(model, name) do
+    sub_workdir = Path.join(model.workdir, model.name)
+    dest_dir = Path.join(sub_workdir, name)
+
+    File.mkdir_p(dest_dir)
+    Enum.each(model.files, fn {_key, src_file} ->
+      dest_file = Path.join(dest_dir, Path.basename(src_file))
+
+      String.ends_with?(src_file, ".csv")
+      |> if do
+        maybe_make_hard_link(src_file, dest_file)
+      else
+        # not shared files, like model.txt
+        File.cp(src_file, dest_file, on_conflict: fn _, _ -> true end)
+      end
+    end)
+
+    model
+    |> Map.merge(%{workdir: sub_workdir, name: name})
+    |> put_files()
+  end
+
+  @doc """
   TODO
   """
   def merge_parameters(model, parameters) do
@@ -146,6 +171,18 @@ defmodule LgbmEx.Model do
     model
     |> put_parameters()
     |> merge_parameters(parameters)
+  end
+
+  defp maybe_make_hard_link(src_file, dest_file) do
+    File.ln(src_file, dest_file)
+    |> case do
+      {:error, :enotsup} ->
+        File.cp(src_file, dest_file, on_conflict: fn _, _ -> true end)
+      {:error, :enoent} ->
+        :ok
+      :ok ->
+        :ok
+    end
   end
 
   defp clear_ref(model), do: Map.put(model, :ref, nil)

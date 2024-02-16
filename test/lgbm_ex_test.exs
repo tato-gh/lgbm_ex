@@ -63,6 +63,35 @@ defmodule LgbmExTest do
     end
   end
 
+  describe "grid_search" do
+    @describetag :tmp_dir
+
+    test "returns results by given grid parameters", %{
+      tmp_dir: tmp_dir
+    } do
+      {x, y} = SampleDataIris.train_set()
+      parameters = SampleDataIris.parameters()
+
+      model = LgbmEx.new_model(tmp_dir)
+      model = LgbmEx.fit(model, x, y, parameters)
+
+      grid = [
+        num_iterations: [5, 10],
+        min_data_in_leaf: [2, 3]
+      ]
+
+      models = LgbmEx.grid_search(model, grid)
+
+      assert 4 == Enum.count(models)
+
+      assert [{5, 2}, {10, 2}, {5, 3}, {10, 3}] ==
+        Enum.map(models, & {
+          Keyword.get(&1.parameters, :num_iterations),
+          Keyword.get(&1.parameters, :min_data_in_leaf)
+        })
+    end
+  end
+
   describe "predict" do
     @describetag :tmp_dir
 

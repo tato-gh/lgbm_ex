@@ -49,6 +49,29 @@ defmodule LgbmEx do
   end
 
   @doc """
+  Generate many models with given grid parameters.
+
+  - Data(train/test) are shared by hard link.
+  - Returns models generated at subdirs.
+  """
+  def grid_search(model, grid) do
+    combinations(grid)
+    |> Enum.with_index(1)
+    |> Enum.map(fn {parameters, index} ->
+      submodel = Model.copy_model_as_sub(model, "grid-#{index}")
+      refit(submodel, parameters)
+    end)
+  end
+
+  defp combinations([]), do: [[]]
+
+  defp combinations([{name, values} | rest]) do
+    for sub <- combinations(rest), value <- values do
+      [{name, value} | sub]
+    end
+  end
+
+  @doc """
   Predict value by model.
   """
   def predict(model, x) do
