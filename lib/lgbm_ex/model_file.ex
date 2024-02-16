@@ -14,6 +14,20 @@ defmodule LgbmEx.ModelFile do
   @doc """
   TODO
   """
+  def read_data(file_path) do
+    File.exists?(file_path)
+    |> if do
+      File.read!(file_path)
+      |> String.split("\n", trim: true)
+      |> Enum.map(& String.split(&1, ","))
+    else
+      nil
+    end
+  end
+
+  @doc """
+  TODO
+  """
   def write_parameters(file_path, parameters) do
     params_str =
       Enum.map(parameters, fn {key, value} -> "#{key} = #{value}" end)

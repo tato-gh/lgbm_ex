@@ -6,6 +6,7 @@ defmodule LgbmEx do
   alias LgbmEx.Model
   alias LgbmEx.ModelFile
   alias LgbmEx.LightGBM
+  alias LgbmEx.Splitter
 
   @doc """
   Returns new model struct work in workdir/cache.
@@ -69,6 +70,33 @@ defmodule LgbmEx do
     for sub <- combinations(rest), value <- values do
       [{name, value} | sub]
     end
+  end
+
+  @doc """
+  Returns evaluation values each k-folding model.
+
+  NOTE: Concat model train and validation to sample all data.
+  """
+  def cross_validate(model, x_test, k, folding_rule \\ :equal) do
+    ModelFile.read_data(model.files.train)
+    |> Kernel.++(ModelFile.read_data(model.files.validation) || [])
+    |> Splitter.split(k, folding_rule)
+    |> Enum.map(fn {train, val} ->
+      {x_train, y_train} = train
+      {x_val, y_val} = val
+
+      model_cv =
+        Model.copy_model(model, "cache_cross_validation")
+        |> fit({x_train, x_val}, {y_train, y_val}, model.parameters)
+
+      {num_iterations, metric_val} = List.last(model_cv.learning_steps)
+
+      %{
+        num_iterations: num_iterations,
+        last_value: metric_val,
+        prediction: predict(model_cv, x_test)
+      }
+    end)
   end
 
   @doc """

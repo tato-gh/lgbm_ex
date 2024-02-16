@@ -92,6 +92,37 @@ defmodule LgbmExTest do
     end
   end
 
+  describe "cross_validate" do
+    @describetag :tmp_dir
+
+    setup %{tmp_dir: tmp_dir} do
+      {x, y} = SampleDataIris.train_set()
+      parameters = SampleDataIris.parameters()
+      model = LgbmEx.new_model(tmp_dir)
+      model = LgbmEx.fit(model, x, y, parameters)
+
+      %{model: model}
+    end
+
+    test "returns cross_validated results", %{
+      model: model
+    } do
+      {x_test, _y} = SampleDataIris.test_set()
+      results = LgbmEx.cross_validate(model, x_test, 3)
+
+      assert 3 == Enum.count(results)
+    end
+
+    test "cross_validation with shuffle", %{
+      model: model
+    } do
+      {x_test, _y} = SampleDataIris.test_set()
+      results = LgbmEx.cross_validate(model, x_test, 3, :shuffle)
+
+      assert 3 == Enum.count(results)
+    end
+  end
+
   describe "predict" do
     @describetag :tmp_dir
 
