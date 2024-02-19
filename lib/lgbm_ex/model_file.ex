@@ -1,10 +1,10 @@
 defmodule LgbmEx.ModelFile do
   @moduledoc """
-  TODO
+  ModelFile for LightGBM CLI outputs.
   """
 
   @doc """
-  TODO
+  Write labels/features as csv to train.
   """
   def write_data(file_path, x, y) do
     csv = join_data(x, y)
@@ -12,7 +12,7 @@ defmodule LgbmEx.ModelFile do
   end
 
   @doc """
-  TODO
+  Read labels/features from csv.
   """
   def read_data(file_path) do
     File.exists?(file_path)
@@ -26,7 +26,7 @@ defmodule LgbmEx.ModelFile do
   end
 
   @doc """
-  TODO
+  Write parameters to train.
   """
   def write_parameters(file_path, parameters) do
     params_str =
@@ -37,7 +37,7 @@ defmodule LgbmEx.ModelFile do
   end
 
   @doc """
-  TODO
+  Read parameters.
   """
   def read_parameters(file_path) do
     File.read!(file_path)
@@ -53,7 +53,7 @@ defmodule LgbmEx.ModelFile do
   end
 
   @doc """
-  TODO
+  Returns num_iterations and learning_steps.
   """
   def parse_train_log(file_path, metric) do
     {:ok, log} = File.read(file_path)

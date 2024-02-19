@@ -1,6 +1,6 @@
 defmodule LgbmEx.LightGBM do
   @moduledoc """
-  TODO
+  LightGBM API
   """
 
   alias LgbmEx.NIFAPI

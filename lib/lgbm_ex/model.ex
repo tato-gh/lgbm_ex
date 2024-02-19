@@ -1,5 +1,6 @@
 defmodule LgbmEx.Model do
   @moduledoc """
+  Model struct
   """
 
   alias LgbmEx.NIFAPI
@@ -22,7 +23,7 @@ defmodule LgbmEx.Model do
   @first_name "cache"
 
   @doc """
-  Model with cache directory
+  Returns %Model{} with cache directory.
   """
   def new_model(workdir) do
     %__MODULE__{workdir: workdir, name: @first_name}
@@ -30,7 +31,7 @@ defmodule LgbmEx.Model do
   end
 
   @doc """
-  Model setup before fit
+  Returns %Model{} setup before fit.
   """
   def setup_model(model, parameters, options \\ []) do
     model
@@ -41,7 +42,7 @@ defmodule LgbmEx.Model do
   end
 
   @doc """
-  Model load from given workdir and name
+  Returns %Model{} loaded from given workdir and name.
   """
   def load_model(workdir, name) do
     model =
@@ -56,7 +57,7 @@ defmodule LgbmEx.Model do
   end
 
   @doc """
-  Model attrs set by NIF
+  Returns %Model{} set attrs after learning.
   """
   def complement_model_attrs(%{ref: ref} = model) do
     {num_iterations, learning_steps} =
@@ -73,7 +74,7 @@ defmodule LgbmEx.Model do
   end
 
   @doc """
-  copy model with given name directory
+  Copy model to given name directory.
   """
   def copy_model(model, name) do
     dest_dir = Path.join(model.workdir, name)
@@ -90,7 +91,7 @@ defmodule LgbmEx.Model do
   end
 
   @doc """
-  copy model to sub directory with given name. Data files are copied by hard link.
+  Copy model to sub directory with given name. Data files are copied by hard link.
   """
   def copy_model_as_sub(model, name) do
     sub_workdir = Path.join(model.workdir, model.name)
@@ -115,7 +116,7 @@ defmodule LgbmEx.Model do
   end
 
   @doc """
-  TODO
+  Returns %Model{} merged given parameters.
   """
   def merge_parameters(model, parameters) do
     custom_parameters =

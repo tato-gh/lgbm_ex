@@ -1,6 +1,6 @@
 defmodule LgbmEx.Splitter do
   @moduledoc """
-  TODO
+  Data splitter for cross_validation.
   """
 
   def split(list, k, :equal) do

@@ -1,6 +1,9 @@
 defmodule LgbmEx do
   @moduledoc """
   LgbmEx is a wrapper library for microsoft/LightGBM.
+
+  - `fit` uses cli command
+  - Others like `predict` use C API by NIF.
   """
 
   alias LgbmEx.Model
@@ -38,7 +41,7 @@ defmodule LgbmEx do
   end
 
   @doc """
-  Fit to existing data with given parameters
+  Fit to existing data with given parameters.
   """
   def refit(model, parameters) do
     parameters = Keyword.merge(model.parameters, parameters)
@@ -50,10 +53,18 @@ defmodule LgbmEx do
   end
 
   @doc """
-  Generate many models with given grid parameters.
+  Generate many models with given grid (parameters list).
 
-  - Data(train/test) are shared by hard link.
   - Returns models generated at subdirs.
+  - Data(train/test) are shared by hard link.
+  - `grid` is like below.
+
+  ```
+  grid = [
+    num_iterations: [5, 10],
+    min_data_in_leaf: [2, 3]
+  ]
+  ```
   """
   def grid_search(model, grid) do
     combinations(grid)
@@ -125,7 +136,7 @@ defmodule LgbmEx do
   end
 
   @doc """
-  Export model as zip.
+  Returns zip file path to export model.
   """
   def dump_zip(model) do
     dir = Path.join(model.workdir, model.name)

@@ -1,6 +1,6 @@
 defmodule LgbmEx.NIFAPI do
   @moduledoc """
-  TODO
+  Nif api interface.
   """
 
   alias LgbmEx.NIF
