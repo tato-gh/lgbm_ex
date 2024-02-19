@@ -103,6 +103,7 @@ defmodule LgbmEx.Model do
 
       String.ends_with?(src_file, ".csv")
       |> if do
+        File.rm(dest_file)
         maybe_make_hard_link(src_file, dest_file)
       else
         # not shared files, like model.txt
