@@ -5,8 +5,8 @@ LgbmEx is a wrapper library for microsoft/LightGBM (partical) cli, C-API impleme
 **NOTE**
 
 - Beta version / Not stable
-- Building model uses CLI command
-- Prediction uses C-API
+- The building of the model uses CLI commands.
+- Prediction uses the C-API.
 
 
 ## Sample
@@ -40,8 +40,8 @@ features = [
 ]
 
 tmp_dir = System.tmp_dir
-model = Lgbm_ex.new_model(tmp_dir)
-model = LgbmEx.fit(features_train, labels_train, [
+model = LgbmEx.new_model(tmp_dir)
+model = LgbmEx.fit(model, features_train, labels_train, [
   objective: "multiclass",
   metric: "multi_logloss",
   num_class: 3,
