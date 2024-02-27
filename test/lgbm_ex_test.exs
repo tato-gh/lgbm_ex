@@ -1,5 +1,5 @@
 defmodule LgbmExTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
   doctest LgbmEx
 
   alias LgbmEx.SampleDataIris
@@ -26,8 +26,7 @@ defmodule LgbmExTest do
       model = LgbmEx.fit(model, x, y, parameters)
 
       assert model.num_iterations == 10
-      # cannot get values because of unuse early_stopping
-      assert model.learning_steps == []
+      assert Enum.count(model.learning_steps) == 10
     end
 
     test "early stopping and returns steps", %{
@@ -43,6 +42,24 @@ defmodule LgbmExTest do
       assert model.num_iterations > 10
       assert Enum.count(model.learning_steps) > 10
       assert hd(model.learning_steps) == {0, 0.939663}
+    end
+  end
+
+  describe "fit_without_eval" do
+    @describetag :tmp_dir
+
+    test "returns model", %{
+      tmp_dir: tmp_dir
+    } do
+      {x, y} = SampleDataIris.train_set()
+      parameters = SampleDataIris.parameters()
+
+      model = LgbmEx.new_model(tmp_dir)
+      model = LgbmEx.fit_without_eval(model, x, y, parameters)
+
+      assert model.num_iterations == 10
+      # cannot get values because of unuse early_stopping
+      assert model.learning_steps == []
     end
   end
 
@@ -128,7 +145,7 @@ defmodule LgbmExTest do
 
     setup [:setup_iris_model]
 
-    test "returns predicted values, case single x", %{
+    test "returns predicted values case single x", %{
       tmp_dir: tmp_dir
     } do
       model = LgbmEx.load_model(tmp_dir, "iris")
@@ -141,7 +158,7 @@ defmodule LgbmExTest do
       assert c3_prob >= 0.0
     end
 
-    test "returns predicted values, case multi x", %{
+    test "returns predicted values case multi x", %{
       tmp_dir: tmp_dir
     } do
       model = LgbmEx.load_model(tmp_dir, "iris")

@@ -32,6 +32,22 @@ defmodule LgbmEx do
   end
 
   def fit(model, x, y, parameters) do
+    # Set validation data for output log on train phase.
+    # Remove that after train because of duplication.
+    model =
+      fit(model, {x, x}, {y, y}, parameters)
+      |> Map.update!(:parameters, & Keyword.put(&1, :valid_data, nil))
+
+    File.rm!(model.files.validation)
+    ModelFile.write_parameters(model.files.parameter, model.parameters)
+
+    model
+  end
+
+  @doc """
+  Fit model without eval (faster than `fit`).
+  """
+  def fit_without_eval(model, x, y, parameters) do
     model = Model.setup_model(model, parameters, validation: false)
     ModelFile.write_data(model.files.train, x, y)
     ModelFile.write_parameters(model.files.parameter, model.parameters)
@@ -100,14 +116,19 @@ defmodule LgbmEx do
         Model.copy_model(model, "cache_cross_validation")
         |> fit({x_train, x_val}, {y_train, y_val}, model.parameters)
 
-      {num_iterations, metric_val} = List.last(model_cv.learning_steps)
+      List.last(model_cv.learning_steps)
+      |> case do
+        {num_iterations, metric_val} ->
+          %{
+            num_iterations: num_iterations,
+            last_value: metric_val,
+            prediction: predict(model_cv, x_test)
+          }
 
-      %{
-        num_iterations: num_iterations,
-        last_value: metric_val,
-        prediction: predict(model_cv, x_test)
-      }
+        _ -> nil
+      end
     end)
+    |> Enum.filter(& &1)
   end
 
   @doc """

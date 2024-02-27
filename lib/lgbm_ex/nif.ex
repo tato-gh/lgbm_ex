@@ -46,6 +46,11 @@ defmodule LgbmEx.NIF do
   def booster_get_current_iteration(_reference), do: :erlang.nif_error(:nif_not_loaded)
 
   @doc """
+  Get booster eval.
+  """
+  def booster_get_eval(_reference), do: :erlang.nif_error(:nif_not_loaded)
+
+  @doc """
   Get booster parameters
   Returns result as charlist.
   """

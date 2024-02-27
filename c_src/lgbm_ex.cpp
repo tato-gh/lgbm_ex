@@ -146,6 +146,26 @@ class LightGBMModel {
       return current_iteration;
     }
 
+    // LGBM_BoosterGetEval
+    std::vector<double> booster_get_eval() {
+      int result;
+      int num_result;
+      int eval_count = 0;
+
+      LGBM_BoosterGetEvalCounts(booster_handle, &eval_count);
+
+      std::vector<double> out_result(eval_count, 0.0);
+
+      result = LGBM_BoosterGetEval(
+        booster_handle,
+        0,
+        &num_result,
+        out_result.data()
+      );
+
+      return out_result;
+    }
+
     // LGBM_BoosterGetLoadedParam
     std::string booster_get_loaded_param() {
       int64_t *out_len = new int64_t();
@@ -326,6 +346,18 @@ ERL_NIF_TERM booster_get_current_iteration(ErlNifEnv* env, int argc, const ERL_N
   return enif_make_string(env, ret_j.dump().c_str(), ERL_NIF_LATIN1);
 }
 
+ERL_NIF_TERM booster_get_eval(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
+  LightGBMModel* model = load_model(env, argv[0]);
+  std::vector<double> result;
+
+  result = model->booster_get_eval();
+
+  json ret_j;
+  ret_j["result"] = result;
+
+  return enif_make_string(env, ret_j.dump().c_str(), ERL_NIF_LATIN1);
+}
+
 ERL_NIF_TERM booster_get_loaded_param(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
   LightGBMModel* model = load_model(env, argv[0]);
 
@@ -367,6 +399,7 @@ static ErlNifFunc nif_funcs[] = {
   {"booster_get_num_classes", 1, booster_get_num_classes},
   {"booster_get_num_features", 1, booster_get_num_features},
   {"booster_get_current_iteration", 1, booster_get_current_iteration},
+  {"booster_get_eval", 1, booster_get_eval},
   {"booster_get_loaded_param", 1, booster_get_loaded_param},
   {"booster_feature_importance", 1, booster_feature_importance},
   {"booster_free", 1, booster_free}
