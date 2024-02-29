@@ -3,12 +3,26 @@ defmodule LgbmEx.Splitter do
   Data splitter for cross_validation.
   """
 
-  def split(list, k, :equal) do
+  def split(list, k, :raw) do
     _split(list, k)
   end
 
   def split(list, k, :shuffle) do
     _split(Enum.shuffle(list), k)
+  end
+
+  def split(list, k, :sort) do
+    # sort to pick variable values for each k
+    box = Enum.map(1..k, fn _ -> [] end)
+
+    Enum.sort_by(list, fn [y_value | _] -> y_value end)
+    |> Enum.with_index()
+    |> Enum.reduce(box, fn {row, index}, acc ->
+      box_index = rem(index, k)
+      List.update_at(acc, box_index, & [row] ++ &1)
+    end)
+    |> Enum.flat_map(& &1)
+    |> _split(k)
   end
 
   defp _split(list, k) do

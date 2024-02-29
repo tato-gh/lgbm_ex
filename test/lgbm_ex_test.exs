@@ -138,6 +138,15 @@ defmodule LgbmExTest do
 
       assert 3 == Enum.count(results)
     end
+
+    test "cross_validation with sort", %{
+      model: model
+    } do
+      {x_test, _y} = SampleDataIris.test_set()
+      results = LgbmEx.cross_validate(model, x_test, 3, :sort)
+
+      assert 3 == Enum.count(results)
+    end
   end
 
   describe "predict" do

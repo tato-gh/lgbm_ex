@@ -104,7 +104,7 @@ defmodule LgbmEx do
 
   NOTE: Concat model train and validation to sample all data.
   """
-  def cross_validate(model, x_test, k, folding_rule \\ :equal) do
+  def cross_validate(model, x_test, k, folding_rule \\ :raw) do
     ModelFile.read_data(model.files.train)
     |> Kernel.++(ModelFile.read_data(model.files.validation) || [])
     |> Splitter.split(k, folding_rule)
