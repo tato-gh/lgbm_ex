@@ -63,13 +63,18 @@ defmodule LgbmEx.Model do
     {num_iterations, learning_steps} =
       ModelFile.parse_train_log(model.files.train_log, Keyword.get(model.parameters, :metric))
 
+    [feature_importance_split, feature_importance_gain] =
+      NIFAPI.call(:booster_feature_importance, ref)
+
+
     Map.merge(model, %{
       num_iterations: num_iterations,
       learning_steps: learning_steps,
       used_parameters: NIFAPI.call(:booster_get_loaded_param, ref) |> Jason.decode!(),
       num_classes: NIFAPI.call(:booster_get_num_classes, ref),
       num_features: NIFAPI.call(:booster_get_num_features, ref),
-      feature_importance: NIFAPI.call(:booster_feature_importance, ref)
+      feature_importance_split: feature_importance_split,
+      feature_importance_gain: feature_importance_gain
     })
   end
 
@@ -152,7 +157,7 @@ defmodule LgbmEx.Model do
       model: Path.join(dir, "model.txt"),
       train: Path.join(dir, "train.csv"),
       validation: Path.join(dir, "validation.csv"),
-      parameter: Path.join(dir, "paramter.txt"),
+      parameter: Path.join(dir, "parameter.txt"),
       train_log: Path.join(dir, "train_log.txt")
     })
   end

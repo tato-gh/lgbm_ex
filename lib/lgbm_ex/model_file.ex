@@ -30,7 +30,13 @@ defmodule LgbmEx.ModelFile do
   """
   def write_parameters(file_path, parameters) do
     params_str =
-      Enum.map(parameters, fn {key, value} -> "#{key} = #{value}" end)
+      Enum.map(parameters, fn
+        {key, values} when is_list(values) ->
+          "#{key} = #{Enum.join(values, ",")}"
+
+        {key, value} ->
+          "#{key} = #{value}"
+      end)
       |> Enum.join("\n")
 
     File.write!(file_path, params_str <> "\n")

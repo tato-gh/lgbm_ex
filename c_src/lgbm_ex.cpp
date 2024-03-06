@@ -183,8 +183,8 @@ class LightGBMModel {
       return std::string(out_str);
     }
 
-    // LGBM_BoosterFeatureImportance
-    std::vector<double> booster_feature_importance(int iteration, int num_features) {
+    // LGBM_BoosterFeatureImportanceGain
+    std::vector<double> booster_feature_importance_gain(int iteration, int num_features) {
       std::vector<double> out_result(num_features, 0.0);
       int result;
 
@@ -192,6 +192,21 @@ class LightGBMModel {
         booster_handle,
         iteration,
         C_API_FEATURE_IMPORTANCE_GAIN,
+        out_result.data()
+      );
+
+      return out_result;
+    }
+
+    // LGBM_BoosterFeatureImportanceSplit
+    std::vector<double> booster_feature_importance_split(int iteration, int num_features) {
+      std::vector<double> out_result(num_features, 0.0);
+      int result;
+
+      result = LGBM_BoosterFeatureImportance(
+        booster_handle,
+        iteration,
+        C_API_FEATURE_IMPORTANCE_SPLIT,
         out_result.data()
       );
 
@@ -372,15 +387,17 @@ ERL_NIF_TERM booster_get_loaded_param(ErlNifEnv* env, int argc, const ERL_NIF_TE
 ERL_NIF_TERM booster_feature_importance(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
   LightGBMModel* model = load_model(env, argv[0]);
   int num_features = model->booster_get_num_features();
-
-  std::vector<double> result;
   int iteration = model->booster_get_current_iteration();
-  result = model->booster_feature_importance(iteration, num_features);
+
+  std::vector<double> result_split;
+  std::vector<double> result_gain;
+  result_split = model->booster_feature_importance_split(iteration, num_features);
+  result_gain = model->booster_feature_importance_gain(iteration, num_features);
 
   json ret_j;
   ret_j["iteration"] = iteration;
   ret_j["num_features"] = num_features;
-  ret_j["result"] = result;
+  ret_j["result"] = {result_split, result_gain};
 
   return enif_make_string(env, ret_j.dump().c_str(), ERL_NIF_LATIN1);
 }
