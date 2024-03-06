@@ -30,6 +30,7 @@ defmodule LgbmEx.Splitter do
 
     list
     |> Enum.chunk_every(chunk_size)
+    |> Enum.slice(0, k)
     |> Enum.map(& zip_x_y/1)
     |> fold()
   end
