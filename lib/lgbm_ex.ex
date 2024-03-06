@@ -120,15 +120,60 @@ defmodule LgbmEx do
       |> case do
         {num_iterations, metric_val} ->
           %{
+            train_size: Enum.count(y_train),
+            val_size: Enum.count(y_val),
             num_iterations: num_iterations,
             last_value: metric_val,
-            prediction: predict(model_cv, x_test)
+            prediction: predict(model_cv, x_test),
+            feature_importance_split: model_cv.feature_importance_split,
+            feature_importance_gain: model_cv.feature_importance_gain
           }
 
         _ -> nil
       end
     end)
     |> Enum.filter(& &1)
+  end
+
+  @doc """
+  Returns aggregated result of cross_validation.
+  """
+  def aggregate_cross_validation_results(results) do
+    keys = ~w(num_iterations last_value prediction feature_importance_split feature_importance_gain)a
+
+    results
+    |> Enum.map(fn result -> Enum.map(keys, & Map.get(result, &1)) end)
+    |> Enum.zip_reduce([], & &2 ++ [&1])
+    |> Enum.zip(keys)
+    |> Enum.map(fn
+      {values, key} when key in [:num_iterations, :last_value] ->
+        {key, calc_mean(values)}
+
+      {values, key} when key in [:feature_importance_split, :feature_importance_gain] ->
+        result =
+          # k回分を統合してそれぞれ返す
+          values
+          |> Enum.zip_reduce([], & &2 ++ [&1])
+          |> Enum.map(& calc_mean/1)
+
+        {key, result}
+
+      {values, :prediction} ->
+        prediction =
+          values
+          |> Enum.zip_reduce([], & &2 ++ [&1])
+          |> Enum.map(fn row_probs_list ->
+            Enum.zip_reduce(row_probs_list, [], & &2 ++ [&1])
+            |> Enum.map(& calc_mean/1)
+          end)
+
+        {:prediction, prediction}
+
+      _ ->
+        nil
+    end)
+    |> Enum.filter(& &1)
+    |> Map.new()
   end
 
   @doc """
@@ -183,5 +228,14 @@ defmodule LgbmEx do
     dir = Path.join(workdir, name) |> String.to_charlist()
     :zip.extract(zip_path, cwd: dir)
     load_model(workdir, name)
+  end
+
+  defp calc_mean([]), do: nil
+
+  defp calc_mean(values) do
+    size = Enum.count(values)
+    sum = Enum.sum(values)
+
+    sum / size
   end
 end
