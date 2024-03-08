@@ -123,7 +123,7 @@ defmodule LgbmEx do
             train_size: Enum.count(y_train),
             val_size: Enum.count(y_val),
             num_iterations: num_iterations,
-            last_value: metric_val,
+            last_evaluation: metric_val,
             prediction: predict(model_cv, x_test),
             feature_importance_split: model_cv.feature_importance_split,
             feature_importance_gain: model_cv.feature_importance_gain
@@ -139,14 +139,14 @@ defmodule LgbmEx do
   Returns aggregated result of cross_validation.
   """
   def aggregate_cross_validation_results(results) do
-    keys = ~w(num_iterations last_value prediction feature_importance_split feature_importance_gain)a
+    keys = ~w(num_iterations last_evaluation prediction feature_importance_split feature_importance_gain)a
 
     results
     |> Enum.map(fn result -> Enum.map(keys, & Map.get(result, &1)) end)
     |> Enum.zip_reduce([], & &2 ++ [&1])
     |> Enum.zip(keys)
     |> Enum.map(fn
-      {values, key} when key in [:num_iterations, :last_value] ->
+      {values, key} when key in [:num_iterations, :last_evaluation] ->
         {key, calc_mean(values)}
 
       {values, key} when key in [:feature_importance_split, :feature_importance_gain] ->
