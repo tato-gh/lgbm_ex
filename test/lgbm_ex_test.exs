@@ -97,7 +97,7 @@ defmodule LgbmExTest do
         min_data_in_leaf: [2, 3]
       ]
 
-      models = LgbmEx.grid_search(model, grid)
+      models = LgbmEx.grid_search(model, grid, 2)
 
       assert 4 == Enum.count(models)
 

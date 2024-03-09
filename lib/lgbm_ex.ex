@@ -82,12 +82,18 @@ defmodule LgbmEx do
   ]
   ```
   """
-  def grid_search(model, grid) do
+  def grid_search(model, grid, k, folding_rule \\ :raw) do
     combinations(grid)
     |> Enum.with_index(1)
     |> Enum.map(fn {parameters, index} ->
       submodel = Model.copy_model_as_sub(model, "grid-#{index}")
-      refit(submodel, parameters)
+      submodel = refit(submodel, parameters)
+
+      {
+        parameters,
+        cross_validate(submodel, [], k, folding_rule)
+        |> aggregate_cross_validation_results()
+      }
     end)
   end
 

@@ -17,7 +17,8 @@ defmodule LgbmEx.Model do
     :used_parameters,
     :num_classes,
     :num_features,
-    :feature_importance
+    :feature_importance_split,
+    :feature_importance_gain
   ]
 
   @first_name "cache"
