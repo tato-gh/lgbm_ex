@@ -91,7 +91,7 @@ defmodule LgbmEx do
 
       {
         parameters,
-        cross_validate(submodel, [], k, folding_rule)
+        cross_validate(submodel, k, folding_rule: folding_rule)
         |> aggregate_cross_validation_results()
       }
     end)
@@ -110,7 +110,11 @@ defmodule LgbmEx do
 
   NOTE: Concat model train and validation to sample all data.
   """
-  def cross_validate(model, x_test, k, folding_rule \\ :raw) do
+  def cross_validate(model, k, options \\ []) do
+    folding_rule = Keyword.get(options, :folding_rule, :raw)
+    x_test = Keyword.get(options, :x_test, [])
+    evaluator = Keyword.get(options, :evaluator, nil)
+
     ModelFile.read_data(model.files.train)
     |> Kernel.++(ModelFile.read_data(model.files.validation) || [])
     |> Splitter.split(k, folding_rule)
@@ -122,6 +126,12 @@ defmodule LgbmEx do
         Model.copy_model(model, "cache_cross_validation")
         |> fit({x_train, x_val}, {y_train, y_val}, model.parameters)
 
+      evaluator_result =
+        if evaluator do
+          pred_val = predict(model_cv, x_val)
+          evaluator.(y_val, pred_val)
+        end
+
       List.last(model_cv.learning_steps)
       |> case do
         {num_iterations, metric_val} ->
@@ -130,6 +140,7 @@ defmodule LgbmEx do
             val_size: Enum.count(y_val),
             num_iterations: num_iterations,
             last_evaluation: metric_val,
+            evaluator_result: evaluator_result,
             prediction: predict(model_cv, x_test),
             feature_importance_split: model_cv.feature_importance_split,
             feature_importance_gain: model_cv.feature_importance_gain
@@ -145,15 +156,15 @@ defmodule LgbmEx do
   Returns aggregated result of cross_validation.
   """
   def aggregate_cross_validation_results(results) do
-    keys = ~w(num_iterations last_evaluation prediction feature_importance_split feature_importance_gain)a
+    keys = ~w(num_iterations last_evaluation evaluator_result prediction feature_importance_split feature_importance_gain)a
 
     results
     |> Enum.map(fn result -> Enum.map(keys, & Map.get(result, &1)) end)
     |> Enum.zip_reduce([], & &2 ++ [&1])
     |> Enum.zip(keys)
     |> Enum.map(fn
-      {values, key} when key in [:num_iterations, :last_evaluation] ->
-        {key, calc_mean(values)}
+      {values, key} when key in [:num_iterations, :last_evaluation, :evaluator_result] ->
+        {key, calc_mean(Enum.filter(values, & &1))}
 
       {values, key} when key in [:feature_importance_split, :feature_importance_gain] ->
         result =
