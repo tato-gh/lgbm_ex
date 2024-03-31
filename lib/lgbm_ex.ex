@@ -82,7 +82,7 @@ defmodule LgbmEx do
   ]
   ```
   """
-  def grid_search(model, grid, k, folding_rule \\ :raw) do
+  def grid_search(model, grid, k, cv_options \\ []) do
     combinations(grid)
     |> Enum.with_index(1)
     |> Enum.map(fn {parameters, index} ->
@@ -91,7 +91,7 @@ defmodule LgbmEx do
 
       {
         parameters,
-        cross_validate(submodel, k, folding_rule: folding_rule)
+        cross_validate(submodel, k, cv_options)
         |> aggregate_cross_validation_results()
       }
     end)
