@@ -41,6 +41,9 @@ defmodule LgbmEx.ModelFile do
       {:error, :enotsup} ->
         File.cp(src_file, dest_file, on_conflict: fn _, _ -> true end)
 
+      {:error, :eexist} ->
+        :ok
+
       {:error, :enoent} ->
         :ok
 
