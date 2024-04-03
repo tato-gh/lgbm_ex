@@ -15,7 +15,7 @@ defmodule LgbmEx.DataFrame do
     |> DataFrame.relocate(y_name, before: 0)
     |> DataFrame.select(full_names)
     |> DataFrame.dump_csv!(header: false)
-    |> then(& {&1, y_name, x_names})
+    |> then(&{&1, y_name, x_names})
   end
 
   def dump_csv!(df, y_name) do

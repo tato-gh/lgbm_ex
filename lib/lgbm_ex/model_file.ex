@@ -26,7 +26,7 @@ defmodule LgbmEx.ModelFile do
     |> String.split("\n")
     |> Enum.reduce([], fn row, acc ->
       String.split(row, "=", trim: true)
-      |> Enum.map(& String.trim/1)
+      |> Enum.map(&String.trim/1)
       |> case do
         ["x_names", value] -> Keyword.put(acc, :x_names, String.split(value, ","))
         [key, value] -> Keyword.put(acc, :"#{key}", conv_type(value))
@@ -40,8 +40,10 @@ defmodule LgbmEx.ModelFile do
     |> case do
       {:error, :enotsup} ->
         File.cp(src_file, dest_file, on_conflict: fn _, _ -> true end)
+
       {:error, :enoent} ->
         :ok
+
       :ok ->
         :ok
     end
@@ -78,7 +80,7 @@ defmodule LgbmEx.ModelFile do
       end
     end)
     |> then(fn {steps, num_iterations} ->
-      {num_iterations, Enum.filter(steps, & &1 && elem(&1, 0))}
+      {num_iterations, Enum.filter(steps, &(&1 && elem(&1, 0)))}
     end)
   end
 

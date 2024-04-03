@@ -89,6 +89,7 @@ defmodule LgbmEx.Model do
     dest_dir = Path.join(get_workdir(), name)
 
     File.mkdir_p(dest_dir)
+
     Enum.each(model.files, fn {_key, src_file} ->
       dest_file = Path.join(dest_dir, Path.basename(src_file))
       File.cp(src_file, dest_file, on_conflict: fn _, _ -> true end)
@@ -101,13 +102,13 @@ defmodule LgbmEx.Model do
 
   def zip(model) do
     dir = Path.join(model.workdir, model.name)
-    model_files = Enum.map(model.files, & Path.basename(elem(&1, 1))) |> MapSet.new()
+    model_files = Enum.map(model.files, &Path.basename(elem(&1, 1))) |> MapSet.new()
     existing_files = File.ls!(dir) |> MapSet.new()
 
     files =
       MapSet.intersection(model_files, existing_files)
       |> MapSet.to_list()
-      |> Enum.map(& String.to_charlist/1)
+      |> Enum.map(&String.to_charlist/1)
 
     tmp_dir = System.tmp_dir!()
     zip_name = Path.join(tmp_dir, model.name <> ".zip") |> String.to_charlist()
@@ -166,32 +167,40 @@ defmodule LgbmEx.Model do
   # end
 
   defp put_parameters(model) do
-    Map.put(model, :parameters, [
+    Map.put(model, :parameters,
       task: "train",
       data: model.files.train,
       output_model: model.files.model,
       label_column: 0,
       saved_feature_importance_type: 1
-    ])
+    )
   end
 
   defp merge_parameters(model, parameters) do
     custom_parameters =
       Keyword.drop(parameters, [:task, :data, :output_model, :label_column])
 
-    Map.update!(model, :parameters, & Keyword.merge(&1, custom_parameters))
+    Map.update!(model, :parameters, &Keyword.merge(&1, custom_parameters))
   end
 
   defp maybe_with_validation(model, true) do
-    Map.update!(model, :parameters, & Keyword.merge(&1, [
-      valid_data: model.files.validation
-    ]))
+    Map.update!(
+      model,
+      :parameters,
+      &Keyword.merge(&1,
+        valid_data: model.files.validation
+      )
+    )
   end
 
   defp maybe_with_validation(model, false) do
-    Map.update!(model, :parameters, & Keyword.merge(&1, [
-      valid_data: nil
-    ]))
+    Map.update!(
+      model,
+      :parameters,
+      &Keyword.merge(&1,
+        valid_data: nil
+      )
+    )
   end
 
   defp maybe_with_validation(model, nil), do: model
