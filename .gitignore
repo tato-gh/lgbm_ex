@@ -27,3 +27,5 @@ lgbm_ex-*.tar
 
 # library cache
 /cache/
+
+.tool-versions

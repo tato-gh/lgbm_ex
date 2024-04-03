@@ -9,7 +9,11 @@ defmodule LgbmEx.LightGBM do
   Train by cmd.
   """
   def train(model) do
-    {_train_log, 0} = System.shell(get_cmd() <> " config=#{model.files.parameter}" <> " > #{model.files.train_log}")
+    {_train_log, 0} =
+      System.shell(
+        get_cmd() <> " config=#{model.files.parameter}" <> " > #{model.files.train_log}"
+      )
+
     {:ok, ref} = NIFAPI.create_reference(model)
     Map.put(model, :ref, ref)
   end

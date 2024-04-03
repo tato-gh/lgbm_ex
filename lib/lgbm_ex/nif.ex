@@ -22,7 +22,8 @@ defmodule LgbmEx.NIF do
   Predict one element.
   Returns result as charlist.
   """
-  def booster_predict_for_mat_single_row(_reference, _charlist_json), do: :erlang.nif_error(:nif_not_loaded)
+  def booster_predict_for_mat_single_row(_reference, _charlist_json),
+    do: :erlang.nif_error(:nif_not_loaded)
 
   @doc """
   Predict elements.
