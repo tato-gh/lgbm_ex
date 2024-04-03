@@ -6,15 +6,13 @@ LgbmEx is a wrapper library for microsoft/LightGBM (partical) cli, C-API impleme
 
 - Beta version / Not stable
 - The building of the model uses CLI commands.
-  - This means using a disk for model and data storage.
+  - This means using disk space for the model and data storage.
 - Prediction uses the C-API.
 
 
 ## Sample
 
 ```elixir
-
-# Please set environment LGBM_EX_WORKDIR for the working disk space, otherwise, uses `System.tmp_dir()/lgbm_ex`
 
 {_mapping, df} = Explorer.Datasets.iris() |> LgbmEx.preproccessing_label_encode("species")
 
@@ -39,6 +37,10 @@ LgbmEx.predict(model, x_test)
 
 ## Instration
 
+NOTE:
+
+- Probably does not work on os x. Docker recommended.
+
 ```elixir
 def deps do
   [
@@ -47,7 +49,12 @@ def deps do
 end
 ```
 
-- Probably does not work on os x. Docker recommended.
+Specify workdir in the following way.
+
+- environment `LGBM_EX_WORKDIR`
+- `Application.put_env(:lgbm_ex, :workdir, "your dir")`
+- Default is `System.tmp_dir()/lgbm_ex` directory
+  - But if you use in livebook you need to specify the workdir by `Application.put_env/3`
 
 
 ## Refereance
