@@ -1,252 +1,202 @@
 defmodule LgbmExTest do
   use ExUnit.Case, async: false
-  doctest LgbmEx
 
-  alias LgbmEx.SampleDataIris
+  alias Explorer.DataFrame, as: DF
 
-  def setup_iris_model(%{tmp_dir: tmp_dir}) do
-    {x, y} = SampleDataIris.train_set()
-    parameters = SampleDataIris.parameters()
-    model = LgbmEx.new_model(tmp_dir)
-    model = LgbmEx.fit(model, x, y, parameters)
-    LgbmEx.save_as(model, "iris")
+  setup(%{tmp_dir: tmp_dir}) do
+    Application.put_env(:lgbm_ex, :workdir, tmp_dir)
     :ok
   end
 
   describe "fit" do
     @describetag :tmp_dir
 
-    test "returns model", %{
-      tmp_dir: tmp_dir
-    } do
-      {x, y} = SampleDataIris.train_set()
-      parameters = SampleDataIris.parameters()
+    test "returns model" do
+      {_, df} = Explorer.Datasets.iris() |> LgbmEx.preproccessing_label_encode("species")
 
-      model = LgbmEx.new_model(tmp_dir)
-      model = LgbmEx.fit(model, x, y, parameters)
+      model =
+        LgbmEx.fit("test", df, "species",
+          objective: "multiclass",
+          metric: "multi_logloss",
+          num_class: 3,
+          num_iterations: 20
+        )
 
-      assert model.num_iterations == 10
-      assert Enum.count(model.learning_steps) == 10
+      assert model.num_iterations == 20
+      assert Enum.count(model.learning_steps) == 20
+      assert Enum.count(Keyword.get(model.parameters, :x_names)) == 4
+      assert Enum.count(model.feature_importance_split) == 4
+      assert Enum.count(model.feature_importance_gain) == 4
+      assert Keyword.get(model.parameters, :y_name) == "species"
     end
 
-    test "early stopping and returns steps", %{
-      tmp_dir: tmp_dir
-    } do
-      {x_train, y_train} = SampleDataIris.train_set()
-      {x_val, y_val} = SampleDataIris.test_set()
-      parameters = SampleDataIris.parameters_with_early_stopping()
+    test "early_stopping" do
+      {_, df} = Explorer.Datasets.iris() |> LgbmEx.preproccessing_label_encode("species")
 
-      model = LgbmEx.new_model(tmp_dir)
-      model = LgbmEx.fit(model, {x_train, x_val}, {y_train, y_val}, parameters)
+      grouped = DF.group_by(df, "species")
+      df_train = DF.slice(grouped, 0, 20) |> DF.ungroup()
+      df_val = DF.slice(grouped, 20, 5) |> DF.ungroup()
 
-      assert model.num_iterations > 10
-      assert Enum.count(model.learning_steps) > 10
-      assert hd(model.learning_steps) == {0, 0.939663}
-    end
-  end
+      model =
+        LgbmEx.fit("test", {df_train, df_val}, "species",
+          objective: "multiclass",
+          metric: "multi_logloss",
+          num_class: 3,
+          num_iterations: 100,
+          early_stopping_round: 1,
+          learning_rate: 0.3
+        )
 
-  describe "fit_without_eval" do
-    @describetag :tmp_dir
-
-    test "returns model", %{
-      tmp_dir: tmp_dir
-    } do
-      {x, y} = SampleDataIris.train_set()
-      parameters = SampleDataIris.parameters()
-
-      model = LgbmEx.new_model(tmp_dir)
-      model = LgbmEx.fit_without_eval(model, x, y, parameters)
-
-      assert model.num_iterations == 10
-      # cannot get values because of unuse early_stopping
-      assert model.learning_steps == []
+      assert model.num_iterations < 100
     end
   end
 
-  describe "refit" do
+  describe "fit_without_val" do
     @describetag :tmp_dir
 
-    test "returns result by given new parameters", %{
-      tmp_dir: tmp_dir
-    } do
-      {x, y} = SampleDataIris.train_set()
-      parameters = SampleDataIris.parameters()
+    test "returns model" do
+      {_, df} = Explorer.Datasets.iris() |> LgbmEx.preproccessing_label_encode("species")
 
-      model = LgbmEx.new_model(tmp_dir)
-      model = LgbmEx.fit(model, x, y, parameters)
+      model =
+        LgbmEx.fit_without_val("test", df, "species",
+          objective: "multiclass",
+          metric: "multi_logloss",
+          num_class: 3,
+          num_iterations: 20
+        )
 
-      model = LgbmEx.refit(model, num_iterations: 2)
-      assert model.num_iterations == 2
-    end
-  end
-
-  describe "grid_search" do
-    @describetag :tmp_dir
-
-    test "returns results by given grid parameters", %{
-      tmp_dir: tmp_dir
-    } do
-      {x, y} = SampleDataIris.train_set()
-      parameters = SampleDataIris.parameters()
-
-      model = LgbmEx.new_model(tmp_dir)
-      model = LgbmEx.fit(model, x, y, parameters)
-
-      grid = [
-        num_iterations: [5, 10],
-        min_data_in_leaf: [2, 3]
-      ]
-
-      models = LgbmEx.grid_search(model, grid, 2)
-
-      assert 4 == Enum.count(models)
-
-      assert [{5, 2}, {10, 2}, {5, 3}, {10, 3}] ==
-        Enum.map(models, & {
-          Keyword.get(&1.parameters, :num_iterations),
-          Keyword.get(&1.parameters, :min_data_in_leaf)
-        })
-    end
-  end
-
-  describe "cross_validate" do
-    @describetag :tmp_dir
-
-    setup %{tmp_dir: tmp_dir} do
-      {x, y} = SampleDataIris.train_set()
-      parameters = SampleDataIris.parameters()
-      model = LgbmEx.new_model(tmp_dir)
-      model = LgbmEx.fit(model, x, y, parameters)
-
-      %{model: model}
-    end
-
-    test "returns cross_validated results", %{
-      model: model
-    } do
-      {x_test, _y} = SampleDataIris.test_set()
-      results = LgbmEx.cross_validate(model, x_test, 3)
-
-      assert 3 == Enum.count(results)
-    end
-
-    test "cross_validation with shuffle", %{
-      model: model
-    } do
-      {x_test, _y} = SampleDataIris.test_set()
-      results = LgbmEx.cross_validate(model, x_test, 3, :shuffle)
-
-      assert 3 == Enum.count(results)
-    end
-
-    test "cross_validation with sort", %{
-      model: model
-    } do
-      {x_test, _y} = SampleDataIris.test_set()
-      results = LgbmEx.cross_validate(model, x_test, 3, :sort)
-
-      assert 3 == Enum.count(results)
+      assert Enum.count(model.learning_steps) == 0
     end
   end
 
   describe "predict" do
     @describetag :tmp_dir
 
-    setup [:setup_iris_model]
+    setup do
+      {_, df} = Explorer.Datasets.iris() |> LgbmEx.preproccessing_label_encode("species")
 
-    test "returns predicted values case single x", %{
-      tmp_dir: tmp_dir
-    } do
-      model = LgbmEx.load_model(tmp_dir, "iris")
-      {x_test, _y} = SampleDataIris.test_set()
-      features = List.first(x_test)
+      LgbmEx.fit_without_val("test", df, "species",
+        objective: "multiclass",
+        metric: "multi_logloss",
+        num_class: 3,
+        num_iterations: 20
+      )
 
-      [c1_prob, c2_prob, c3_prob] = LgbmEx.predict(model, features)
-      assert c1_prob >= 0.5
-      assert c2_prob >= 0.0
-      assert c3_prob >= 0.0
+      :ok
     end
 
-    test "returns predicted values case multi x", %{
-      tmp_dir: tmp_dir
-    } do
-      model = LgbmEx.load_model(tmp_dir, "iris")
-      {x_test, _y} = SampleDataIris.test_set()
+    test "returns predicted values, case raw list data given" do
+      model = LgbmEx.load_model("test")
 
-      [[c1_prob, c2_prob, c3_prob] | _] = results = LgbmEx.predict(model, x_test)
-      assert c1_prob >= 0.5
-      assert c2_prob >= 0.0
-      assert c3_prob >= 0.0
-      assert Enum.count(results) == Enum.count(x_test)
+      x_test =
+        [
+          [5.4, 3.9, 1.7, 0.4],
+          [5.7, 2.8, 4.5, 1.4],
+          [7.6, 3.0, 6.6, 2.2]
+        ]
+
+      [p1, p2, p3] = LgbmEx.predict(model, x_test)
+
+      assert Enum.at(p1, 0) > 0.5
+      assert Enum.at(p2, 1) > 0.5
+      assert Enum.at(p3, 2) > 0.5
+    end
+
+    test "returns predicted values, case %DataFrame{} given" do
+      model = LgbmEx.load_model("test")
+      df = Explorer.Datasets.iris()
+      grouped = DF.group_by(df, "species")
+      x_test = DF.slice(grouped, 0, 1) |> DF.ungroup()
+
+      [p1, p2, p3] = LgbmEx.predict(model, x_test)
+
+      assert Enum.at(p1, 0) > 0.5
+      assert Enum.at(p2, 1) > 0.5
+      assert Enum.at(p3, 2) > 0.5
     end
   end
 
-  describe "save_as" do
+  describe "refit_model" do
     @describetag :tmp_dir
 
-    test "returns model saved", %{
-      tmp_dir: tmp_dir
-    } do
-      {x, y} = SampleDataIris.train_set()
-      parameters = SampleDataIris.parameters()
-      model = LgbmEx.new_model(tmp_dir)
-      model = LgbmEx.fit(model, x, y, parameters)
+    test "returns result by given new parameters" do
+      {_, df} = Explorer.Datasets.iris() |> LgbmEx.preproccessing_label_encode("species")
 
-      saved_model = LgbmEx.save_as(model, "iris")
-      assert File.exists?(saved_model.files.model)
+      model =
+        LgbmEx.fit("test", df, "species",
+          objective: "multiclass",
+          metric: "multi_logloss",
+          num_class: 3,
+          num_iterations: 20
+        )
+
+      assert 20 == Enum.count(model.learning_steps)
+
+      model = LgbmEx.refit_model(model, num_iterations: 2)
+      assert 2 == Enum.count(model.learning_steps)
     end
   end
 
   describe "load_model" do
     @describetag :tmp_dir
 
-    setup [:setup_iris_model]
+    test "returns model loaded" do
+      {_, df} = Explorer.Datasets.iris() |> LgbmEx.preproccessing_label_encode("species")
 
-    test "returns model loaded", %{
-      tmp_dir: tmp_dir
-    } do
-      loaded_model = LgbmEx.load_model(tmp_dir, "iris")
-      assert %{metric: "multi_logloss"} = Map.new(loaded_model.parameters)
+      LgbmEx.fit_without_val("test", df, "species",
+        objective: "multiclass",
+        metric: "multi_logloss",
+        num_class: 3,
+        num_iterations: 2
+      )
+
+      assert LgbmEx.load_model("test")
     end
   end
 
-  describe "dump_zip" do
+  describe "copy_model" do
     @describetag :tmp_dir
 
-    setup [:setup_iris_model]
+    test "returns model copied" do
+      {_, df} = Explorer.Datasets.iris() |> LgbmEx.preproccessing_label_encode("species")
 
-    test "returns model loaded", %{
-      tmp_dir: tmp_dir
-    } do
-      model = LgbmEx.load_model(tmp_dir, "iris")
-      zip_path = LgbmEx.dump_zip(model)
+      model =
+        LgbmEx.fit_without_val("test", df, "species",
+          objective: "multiclass",
+          metric: "multi_logloss",
+          num_class: 3,
+          num_iterations: 2
+        )
+
+      copied_model = LgbmEx.copy_model(model, "copied")
+      assert File.exists?(copied_model.files.model)
+    end
+  end
+
+  describe "Persist" do
+    @describetag :tmp_dir
+
+    test "zip and unzip" do
+      {_, df} = Explorer.Datasets.iris() |> LgbmEx.preproccessing_label_encode("species")
+
+      model =
+        LgbmEx.fit("test", df, "species",
+          objective: "multiclass",
+          metric: "multi_logloss",
+          num_class: 3,
+          num_iterations: 20
+        )
+
+      zip_path = LgbmEx.zip_model(model)
 
       assert File.exists?(zip_path)
-      assert String.ends_with?(zip_path, "/iris.zip")
-    end
-  end
+      assert String.ends_with?(zip_path, "/test.zip")
 
-  describe "from_zip" do
-    @describetag :tmp_dir
+      model = LgbmEx.unzip_model(zip_path, "test_from_zip")
 
-    setup [:setup_iris_model]
-
-    test "returns model loaded", %{
-      tmp_dir: tmp_dir
-    } do
-      model = LgbmEx.load_model(tmp_dir, "iris")
-      zip_path = LgbmEx.dump_zip(model)
-
-      model = LgbmEx.from_zip(zip_path, tmp_dir, "iris_from_zip")
-
-      assert model.name == "iris_from_zip"
-      assert model.num_iterations == 10
-
-      {x_test, _y} = SampleDataIris.test_set()
-      features = List.first(x_test)
-
-      [c1_prob | _] = LgbmEx.predict(model, features)
-      assert c1_prob >= 0.5
+      x_test = [[5.4, 3.9, 1.7, 0.4]]
+      [p1] = LgbmEx.predict(model, x_test)
+      assert Enum.at(p1, 0) > 0.5
     end
   end
 end

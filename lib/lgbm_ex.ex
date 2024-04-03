@@ -7,252 +7,79 @@ defmodule LgbmEx do
   """
 
   alias LgbmEx.Model
-  alias LgbmEx.ModelFile
-  alias LgbmEx.LightGBM
-  alias LgbmEx.Splitter
 
-  @doc """
-  Returns new model struct work in workdir/cache.
-  """
-  def new_model(workdir) do
-    Model.new_model(workdir)
+  def fit(model_name, {df_train, df_val}, feature_names, parameters) do
+    {csv_train, y_name, x_names} = LgbmEx.DataFrame.dump_csv!(df_train, feature_names)
+    {csv_val, _, _} = LgbmEx.DataFrame.dump_csv!(df_val, feature_names)
+    parameters = merge_feature_names(parameters, y_name, x_names)
+
+    Model.train(model_name, {csv_train, csv_val}, parameters)
   end
 
-  @doc """
-  Fit model.
-  """
-  def fit(model, {x_train, x_val}, {y_train, y_val}, parameters) do
-    model = Model.setup_model(model, parameters, validation: true)
-    ModelFile.write_data(model.files.train, x_train, y_train)
-    ModelFile.write_data(model.files.validation, x_val, y_val)
-    ModelFile.write_parameters(model.files.parameter, model.parameters)
+  def fit(model_name, df, feature_names, parameters) do
+    {csv_train, y_name, x_names} = LgbmEx.DataFrame.dump_csv!(df, feature_names)
+    parameters = merge_feature_names(parameters, y_name, x_names)
 
-    LightGBM.train(model)
-    |> Model.complement_model_attrs()
+    Model.train(model_name, {csv_train}, parameters)
   end
 
-  def fit(model, x, y, parameters) do
-    # Set validation data for output log on train phase.
-    # Remove that after train because of duplication.
-    model =
-      fit(model, {x, x}, {y, y}, parameters)
-      |> Map.update!(:parameters, & Keyword.put(&1, :valid_data, nil))
+  def fit_without_val(model_name, df, feature_names, parameters) do
+    {csv_train, y_name, x_names} = LgbmEx.DataFrame.dump_csv!(df, feature_names)
+    parameters = merge_feature_names(parameters, y_name, x_names)
 
-    File.rm!(model.files.validation)
-    ModelFile.write_parameters(model.files.parameter, model.parameters)
-
-    model
+    Model.train(model_name, csv_train, parameters)
   end
 
-  @doc """
-  Fit model without eval (faster than `fit`).
-  """
-  def fit_without_eval(model, x, y, parameters) do
-    model = Model.setup_model(model, parameters, validation: false)
-    ModelFile.write_data(model.files.train, x, y)
-    ModelFile.write_parameters(model.files.parameter, model.parameters)
-
-    LightGBM.train(model)
-    |> Model.complement_model_attrs()
+  def predict(model, df_or_list) do
+    Model.predict(model, df_or_list)
   end
 
-  @doc """
-  Fit to existing data with given parameters.
-  """
-  def refit(model, parameters) do
-    parameters = Keyword.merge(model.parameters, parameters)
-    model = Model.setup_model(model, parameters)
-    ModelFile.write_parameters(model.files.parameter, model.parameters)
+  def preproccessing_label_encode(df, y_name, mapping \\ nil) do
+    mapping = _label_mapping(df[y_name], mapping)
 
-    LightGBM.train(model)
-    |> Model.complement_model_attrs()
+    labels =
+      Enum.reduce(mapping, df[y_name], fn {label, index}, acc ->
+        Explorer.Series.replace(acc, label, to_string(index))
+      end)
+
+    {mapping, Explorer.DataFrame.put(df, y_name, labels)}
   end
 
-  @doc """
-  Generate many models with given grid (parameters list).
+  def gen_label_mapping(series), do: _label_mapping(series, nil)
 
-  - Returns models generated at subdirs.
-  - Data(train/test) are shared by hard link.
-  - `grid` is like below.
-
-  ```
-  grid = [
-    num_iterations: [5, 10],
-    min_data_in_leaf: [2, 3]
-  ]
-  ```
-  """
-  def grid_search(model, grid, k, cv_options \\ []) do
-    combinations(grid)
-    |> Enum.with_index(1)
-    |> Enum.map(fn {parameters, index} ->
-      submodel = Model.copy_model_as_sub(model, "grid-#{index}")
-      submodel = refit(submodel, parameters)
-
-      {
-        parameters,
-        cross_validate(submodel, k, cv_options)
-        |> aggregate_cross_validation_results()
-      }
-    end)
-  end
-
-  defp combinations([]), do: [[]]
-
-  defp combinations([{name, values} | rest]) do
-    for sub <- combinations(rest), value <- values do
-      [{name, value} | sub]
-    end
-  end
-
-  @doc """
-  Returns evaluation values each k-folding model.
-
-  NOTE: Concat model train and validation to sample all data.
-  """
-  def cross_validate(model, k, options \\ []) do
-    folding_rule = Keyword.get(options, :folding_rule, :raw)
-    x_test = Keyword.get(options, :x_test, [])
-    evaluator = Keyword.get(options, :evaluator, nil)
-
-    ModelFile.read_data(model.files.train)
-    |> Kernel.++(ModelFile.read_data(model.files.validation) || [])
-    |> Splitter.split(k, folding_rule)
-    |> Enum.map(fn {train, val} ->
-      {x_train, y_train} = train
-      {x_val, y_val} = val
-
-      model_cv =
-        Model.copy_model(model, "cache_cross_validation")
-        |> fit({x_train, x_val}, {y_train, y_val}, model.parameters)
-
-      evaluator_result =
-        if evaluator do
-          pred_val = predict(model_cv, x_val)
-          evaluator.(y_val, pred_val)
-        end
-
-      List.last(model_cv.learning_steps)
-      |> case do
-        {num_iterations, metric_val} ->
-          %{
-            train_size: Enum.count(y_train),
-            val_size: Enum.count(y_val),
-            num_iterations: num_iterations,
-            last_evaluation: metric_val,
-            evaluator_result: evaluator_result,
-            prediction: predict(model_cv, x_test),
-            feature_importance_split: model_cv.feature_importance_split,
-            feature_importance_gain: model_cv.feature_importance_gain
-          }
-
-        _ -> nil
-      end
-    end)
-    |> Enum.filter(& &1)
-  end
-
-  @doc """
-  Returns aggregated result of cross_validation.
-  """
-  def aggregate_cross_validation_results(results) do
-    keys = ~w(num_iterations last_evaluation evaluator_result prediction feature_importance_split feature_importance_gain)a
-
-    results
-    |> Enum.map(fn result -> Enum.map(keys, & Map.get(result, &1)) end)
-    |> Enum.zip_reduce([], & &2 ++ [&1])
-    |> Enum.zip(keys)
-    |> Enum.map(fn
-      {values, key} when key in [:num_iterations, :last_evaluation, :evaluator_result] ->
-        {key, calc_mean(Enum.filter(values, & &1))}
-
-      {values, key} when key in [:feature_importance_split, :feature_importance_gain] ->
-        result =
-          # k回分を統合してそれぞれ返す
-          values
-          |> Enum.zip_reduce([], & &2 ++ [&1])
-          |> Enum.map(& calc_mean/1)
-
-        {key, result}
-
-      {values, :prediction} ->
-        prediction =
-          values
-          |> Enum.zip_reduce([], & &2 ++ [&1])
-          |> Enum.map(fn row_probs_list ->
-            Enum.zip_reduce(row_probs_list, [], & &2 ++ [&1])
-            |> Enum.map(& calc_mean/1)
-          end)
-
-        {:prediction, prediction}
-
-      _ ->
-        nil
-    end)
-    |> Enum.filter(& &1)
+  defp _label_mapping(series, nil) do
+    series
+    |> Explorer.Series.frequencies()
+    |> Explorer.DataFrame.pull("values")
+    |> Explorer.Series.to_list()
+    |> Enum.with_index(0)
     |> Map.new()
   end
 
-  @doc """
-  Predict value by model.
-  """
-  def predict(model, x) do
-    LightGBM.predict(model, x)
+  defp _label_mapping(_series, mapping), do: mapping
+
+  defp merge_feature_names(parameters, y_name, x_names) do
+    Keyword.merge(parameters, y_name: y_name, x_names: x_names)
   end
 
-  @doc """
-  Save model.
-  """
-  def save_as(model, name) do
-    Model.copy_model(model, name)
+  def load_model(name) do
+    Model.load(name)
   end
 
-  @doc """
-  Load model from given workdir and name
-  """
-  def load_model(workdir, name) do
-    model = Model.load_model(workdir, name)
-    parameters = ModelFile.read_parameters(model.files.parameter)
-
-    Map.put(model, :parameters, parameters)
-    |> Model.complement_model_attrs()
+  def refit_model(model, parameters) do
+    Model.refit(model, parameters)
   end
 
-  @doc """
-  Returns zip file path to export model.
-  """
-  def dump_zip(model) do
-    dir = Path.join(model.workdir, model.name)
-    model_files = Enum.map(model.files, & Path.basename(elem(&1, 1))) |> MapSet.new()
-    existing_files = File.ls!(dir) |> MapSet.new()
+  def copy_model(model, name) do
+    Model.copy(model, name)
+  end
 
-    files = MapSet.intersection(model_files, existing_files)
-            |> MapSet.to_list()
-            |> Enum.map(& String.to_charlist/1)
-
-    tmp_dir = System.tmp_dir!()
-    zip_name = Path.join(tmp_dir, model.name <> ".zip") |> String.to_charlist()
-
-    {:ok, zip_file_path} = :zip.create(zip_name, files, cwd: dir)
+  def zip_model(model) do
+    {:ok, zip_file_path} = Model.zip(model)
     List.to_string(zip_file_path)
   end
 
-  @doc """
-  Build model from zip.
-  """
-  def from_zip(zip_path, workdir, name) do
-    zip_path = String.to_charlist(zip_path)
-    dir = Path.join(workdir, name) |> String.to_charlist()
-    :zip.extract(zip_path, cwd: dir)
-    load_model(workdir, name)
-  end
-
-  defp calc_mean([]), do: nil
-
-  defp calc_mean(values) do
-    size = Enum.count(values)
-    sum = Enum.sum(values)
-
-    sum / size
+  def unzip_model(path, name) do
+    Model.unzip(path, name)
   end
 end

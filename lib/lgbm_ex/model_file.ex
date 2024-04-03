@@ -3,32 +3,11 @@ defmodule LgbmEx.ModelFile do
   ModelFile for LightGBM CLI outputs.
   """
 
-  @doc """
-  Write labels/features as csv to train.
-  """
-  def write_data(file_path, x, y) do
-    csv = join_data(x, y)
-    File.write!(file_path, csv)
+  def write!(path, binary) do
+    File.write!(path, binary)
   end
 
-  @doc """
-  Read labels/features from csv.
-  """
-  def read_data(file_path) do
-    File.exists?(file_path)
-    |> if do
-      File.read!(file_path)
-      |> String.split("\n", trim: true)
-      |> Enum.map(& String.split(&1, ","))
-    else
-      nil
-    end
-  end
-
-  @doc """
-  Write parameters to train.
-  """
-  def write_parameters(file_path, parameters) do
+  def write_parameters!(path, parameters) do
     params_str =
       Enum.map(parameters, fn
         {key, values} when is_list(values) ->
@@ -39,59 +18,41 @@ defmodule LgbmEx.ModelFile do
       end)
       |> Enum.join("\n")
 
-    File.write!(file_path, params_str <> "\n")
+    write!(path, params_str <> "\n")
   end
 
-  @doc """
-  Read parameters.
-  """
-  def read_parameters(file_path) do
-    File.read!(file_path)
+  def read_parameters!(path) do
+    File.read!(path)
     |> String.split("\n")
     |> Enum.reduce([], fn row, acc ->
       String.split(row, "=", trim: true)
       |> Enum.map(& String.trim/1)
       |> case do
+        ["x_names", value] -> Keyword.put(acc, :x_names, String.split(value, ","))
         [key, value] -> Keyword.put(acc, :"#{key}", conv_type(value))
         _ -> acc
       end
     end)
   end
 
+  def maybe_make_hard_link(src_file, dest_file) do
+    File.ln(src_file, dest_file)
+    |> case do
+      {:error, :enotsup} ->
+        File.cp(src_file, dest_file, on_conflict: fn _, _ -> true end)
+      {:error, :enoent} ->
+        :ok
+      :ok ->
+        :ok
+    end
+  end
+
   @doc """
   Returns num_iterations and learning_steps.
   """
-  def parse_train_log(file_path, metric) do
-    {:ok, log} = File.read(file_path)
+  def parse_train_log(path, metric) do
+    {:ok, log} = File.read(path)
     _parse_train_log(log, metric)
-  end
-
-  defp join_data(x, y) do
-    Enum.zip(x, y)
-    |> Enum.map(fn {features, label} -> "#{label}," <> join_values(features, "") end)
-    |> Enum.join("\n")
-    |> Kernel.<>("\n")
-  end
-
-  defp join_values([only_one], _acc) do
-    "#{only_one ||"NA"}"
-  end
-
-  defp join_values([head, tail], acc) do
-    acc <> "#{head || "NA"},#{tail || "NA"}"
-  end
-
-  defp join_values([head | tail], acc) do
-    join_values(tail, acc <> "#{head || "NA"},")
-  end
-
-  defp conv_type(value) do
-    {Integer.parse(value), Float.parse(value)}
-    |> case do
-      {{v, ""}, _} -> v
-      {_, {v, ""}} -> v
-      _ -> value
-    end
   end
 
   defp _parse_train_log(log, metric) do
@@ -134,6 +95,15 @@ defmodule LgbmEx.ModelFile do
     |> case do
       [[_, matched]] -> String.to_integer(matched)
       [] -> nil
+    end
+  end
+
+  defp conv_type(value) do
+    {Integer.parse(value), Float.parse(value)}
+    |> case do
+      {{v, ""}, _} -> v
+      {_, {v, ""}} -> v
+      _ -> value
     end
   end
 end

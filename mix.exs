@@ -7,7 +7,7 @@ defmodule LgbmEx.MixProject do
     [
       app: :lgbm_ex,
       version: @version,
-      elixir: "~> 1.14",
+      elixir: "~> 1.15",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       compilers: [:elixir_make] ++ Mix.compilers(),
@@ -31,6 +31,9 @@ defmodule LgbmEx.MixProject do
     [
       {:elixir_make, "~> 0.4", runtime: false},
       {:jason, "~> 1.2"},
+      # Data
+      {:explorer, "~> 0.8.1"},
+      {:scholar, "~> 0.2.1"},
       # Test
       {:mix_test_observer, "~> 0.1", only: [:dev, :test], runtime: false}
     ]
