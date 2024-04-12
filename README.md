@@ -44,7 +44,7 @@ NOTE:
 ```elixir
 def deps do
   [
-    {:lgbm_ex, "0.0.2", github: "/tato-gh/lgbm_ex"}
+    {:lgbm_ex, "0.0.2", github: "tato-gh/lgbm_ex"}
   ]
 end
 ```
