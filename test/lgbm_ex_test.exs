@@ -116,6 +116,38 @@ defmodule LgbmExTest do
     end
   end
 
+  describe "preproccessing_label_encode" do
+    @describetag :tmp_dir
+
+    test "without mapping" do
+      df = Explorer.Datasets.iris()
+      {mapping, ret} = LgbmEx.preproccessing_label_encode(df, "species")
+
+      assert %{
+               "Iris-setosa" => 0,
+               "Iris-versicolor" => 1,
+               "Iris-virginica" => 2
+             } = mapping
+
+      assert ret["species"][0] == "0"
+      assert Explorer.Series.dtype(ret["species"]) == :category
+    end
+
+    test "with mapping" do
+      df = Explorer.Datasets.iris()
+
+      my_mapping = %{
+        "Iris-setosa" => 2,
+        "Iris-versicolor" => 1,
+        "Iris-virginica" => 0
+      }
+
+      {_mapping, ret} = LgbmEx.preproccessing_label_encode(df, "species", my_mapping)
+
+      assert ret["species"][0] == "2"
+    end
+  end
+
   describe "refit_model" do
     @describetag :tmp_dir
 

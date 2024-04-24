@@ -34,15 +34,16 @@ defmodule LgbmEx do
     Model.predict(model, df_or_list)
   end
 
-  def preproccessing_label_encode(df, y_name, mapping \\ nil) do
-    mapping = _label_mapping(df[y_name], mapping)
+  def preproccessing_label_encode(df, name, mapping \\ nil) do
+    mapping = _label_mapping(df[name], mapping)
 
     labels =
-      Enum.reduce(mapping, df[y_name], fn {label, index}, acc ->
+      Enum.reduce(mapping, df[name], fn {label, index}, acc ->
         Explorer.Series.replace(acc, label, to_string(index))
       end)
+      |> Explorer.Series.cast(:category)
 
-    {mapping, Explorer.DataFrame.put(df, y_name, labels)}
+    {mapping, Explorer.DataFrame.put(df, name, labels)}
   end
 
   def gen_label_mapping(series), do: _label_mapping(series, nil)

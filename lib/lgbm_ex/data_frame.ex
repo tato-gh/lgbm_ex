@@ -24,9 +24,21 @@ defmodule LgbmEx.DataFrame do
   end
 
   def to_x(df, x_names) do
-    df
-    |> DataFrame.select(x_names)
-    |> Nx.stack(axis: -1)
-    |> Nx.to_list()
+    [x_one | _] =
+      x_list =
+      df
+      |> DataFrame.select(x_names)
+      |> Nx.stack(axis: -1)
+      |> Nx.to_list()
+
+    # `Nx.stack` rejects string columns (silently), so alert if size is changed.
+    num_columns_before = Enum.count(x_names)
+    num_columns_after = Enum.count(x_one)
+
+    if num_columns_before != num_columns_after do
+      raise "maybe your prediction targets have string-type column"
+    end
+
+    x_list
   end
 end
