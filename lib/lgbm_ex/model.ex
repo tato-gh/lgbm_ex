@@ -178,7 +178,7 @@ defmodule LgbmEx.Model do
 
   defp merge_parameters(model, parameters) do
     custom_parameters =
-      Keyword.drop(parameters, [:task, :data, :output_model, :label_column])
+      Keyword.drop(parameters, [:task, :data, :output_model, :label_column, :valid_data])
 
     Map.update!(model, :parameters, &Keyword.merge(&1, custom_parameters))
   end
