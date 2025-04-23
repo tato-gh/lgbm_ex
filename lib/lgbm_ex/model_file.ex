@@ -90,7 +90,7 @@ defmodule LgbmEx.ModelFile do
   defp parse_score(row, metric) do
     Regex.scan(~r/#{metric} : ([-\.\d]+)/, row)
     |> case do
-      [[_, matched]] -> String.to_float(matched)
+      [[_, matched]] -> conv_type(matched)
       [] -> nil
     end
   end
