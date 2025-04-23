@@ -145,10 +145,12 @@ defmodule LgbmEx.Model do
   end
 
   defp prepare_train(model, parameters, options \\ []) do
+    with_validation? = Keyword.get(options, :validation) || Keyword.has_key?(parameters, :valid_data)
+
     model
     |> clear_ref()
     |> put_parameters()
-    |> maybe_with_validation(Keyword.get(options, :validation))
+    |> maybe_with_validation(with_validation?)
     |> merge_parameters(parameters)
   end
 
