@@ -96,10 +96,22 @@ defmodule LgbmEx.ModelFile do
   end
 
   defp parse_iteration(row) do
+    get_early_stopping_best_iteration(row) || get_finished_iteration(row)
+  end
+
+  defp get_early_stopping_best_iteration(row) do
+    Regex.scan(~r/the best iteration round is (\d+)/, row)
+    |> case do
+      [[_, matched]] -> String.to_integer(matched)
+      _ -> nil
+    end
+  end
+
+  defp get_finished_iteration(row) do
     Regex.scan(~r/finished iteration (\d+)/, row)
     |> case do
       [[_, matched]] -> String.to_integer(matched)
-      [] -> nil
+      _ -> nil
     end
   end
 
