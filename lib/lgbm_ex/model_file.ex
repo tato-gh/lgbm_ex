@@ -64,22 +64,23 @@ defmodule LgbmEx.ModelFile do
     # heuristic logic, good luck!
     log
     |> String.split("\n")
-    |> Enum.map_reduce(0, fn row, acc ->
+    |> Enum.map_reduce(nil, fn row, acc ->
       score = parse_score(row, metric)
-      iteration = parse_iteration(row)
+      best_iteration = if is_nil(acc), do: parse_best_iteration(row)
 
-      case {score, iteration} do
+      case {score, best_iteration} do
         {nil, nil} ->
           # other log, skip row
           {nil, acc}
 
-        {nil, iteration} ->
+        {nil, best_iteration} ->
           # iteration set
-          {nil, iteration}
+          {nil, best_iteration}
 
         {score, nil} ->
-          # score got on current acc(= iteration)
-          {{acc, score}, nil}
+          # score got, check iteration
+          iteration = parse_iteration(row)
+          {{score, iteration}, acc}
       end
     end)
     |> then(fn {steps, num_iterations} ->
@@ -96,6 +97,14 @@ defmodule LgbmEx.ModelFile do
   end
 
   defp parse_iteration(row) do
+    Regex.scan(~r/Iteration:(\d+)/, row)
+    |> case do
+      [[_, matched]] -> conv_type(matched)
+      [] -> nil
+    end
+  end
+
+  defp parse_best_iteration(row) do
     get_early_stopping_best_iteration(row) || get_finished_iteration(row)
   end
 
