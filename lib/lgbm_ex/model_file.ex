@@ -66,7 +66,7 @@ defmodule LgbmEx.ModelFile do
     |> String.split("\n")
     |> Enum.map_reduce(nil, fn row, acc ->
       score = parse_score(row, metric)
-      best_iteration = if is_nil(acc), do: parse_best_iteration(row)
+      best_iteration = if is_nil(acc), do: parse_early_stopping_best_iteration(row)
 
       case {score, best_iteration} do
         {nil, nil} ->
@@ -84,6 +84,7 @@ defmodule LgbmEx.ModelFile do
       end
     end)
     |> then(fn {steps, num_iterations} ->
+      num_iterations = num_iterations || parse_finished_iteration(log)
       {num_iterations, Enum.filter(steps, &(&1 && elem(&1, 0)))}
     end)
   end
@@ -104,11 +105,7 @@ defmodule LgbmEx.ModelFile do
     end
   end
 
-  defp parse_best_iteration(row) do
-    get_early_stopping_best_iteration(row) || get_finished_iteration(row)
-  end
-
-  defp get_early_stopping_best_iteration(row) do
+  defp parse_early_stopping_best_iteration(row) do
     Regex.scan(~r/the best iteration round is (\d+)/, row)
     |> case do
       [[_, matched]] -> String.to_integer(matched)
@@ -116,11 +113,12 @@ defmodule LgbmEx.ModelFile do
     end
   end
 
-  defp get_finished_iteration(row) do
-    Regex.scan(~r/finished iteration (\d+)/, row)
+  defp parse_finished_iteration(log) do
+    Regex.scan(~r/finished iteration (\d+)/, log)
+    |> List.last()
     |> case do
-      [[_, matched]] -> String.to_integer(matched)
-      _ -> nil
+      [_, matched] -> conv_type(matched)
+      nil -> nil
     end
   end
 
