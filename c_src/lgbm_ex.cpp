@@ -10,33 +10,34 @@ using json = nlohmann::json;
 
 class LightGBMModel {
   public:
-    LightGBMModel() {}
+    LightGBMModel() : booster_handle(nullptr), fastconfig_handle(nullptr) {}
 
     ~LightGBMModel() {
-      LGBM_BoosterFree(booster_handle);
-      if(fastconfig) {
+      if(booster_handle != nullptr) {
+        LGBM_BoosterFree(booster_handle);
+      }
+      if(fastconfig && fastconfig_handle != nullptr) {
         LGBM_FastConfigFree(fastconfig_handle);
       }
     }
 
     // LGBM_BoosterCreateFromModelfile
-    int booster_create_from_model_file(std::string filename) {
-      int result;
-      int num_iteration;
-
-      result = LGBM_BoosterCreateFromModelfile(
+    // Returns 0 on success, non-zero on error
+    int booster_create_from_model_file(std::string filename, int* num_iteration) {
+      int result = LGBM_BoosterCreateFromModelfile(
         filename.c_str(),
-        &num_iteration,
+        num_iteration,
         &booster_handle
       );
 
-      return num_iteration;
+      return result;
     }
 
     // LGBM_BoosterPredictForMatSingleRow
-    std::vector<double> booster_predict_for_mat_single_row(json row, int num_features, int num_classes) {
-      int64_t *out_len = new int64_t();
-      std::vector<double> out_result(num_classes, 0.0);
+    // Returns 0 on success, non-zero on error
+    int booster_predict_for_mat_single_row(json row, int num_features, int num_classes, std::vector<double>& out_result) {
+      int64_t out_len;
+      out_result.resize(num_classes, 0.0);
       std::vector<float> f_row;
       for(auto v: row) {
         if(v.is_null()) {
@@ -50,7 +51,7 @@ class LightGBMModel {
       }
 
       if(fastconfig == false) {
-        LGBM_BoosterPredictForMatSingleRowFastInit(
+        int result = LGBM_BoosterPredictForMatSingleRowFastInit(
           booster_handle,
           C_API_PREDICT_NORMAL,
           0,
@@ -60,23 +61,25 @@ class LightGBMModel {
           "",
           &fastconfig_handle
         );
+        if (result != 0) return result;
         fastconfig = true;
       }
 
-      LGBM_BoosterPredictForMatSingleRowFast(
+      int result = LGBM_BoosterPredictForMatSingleRowFast(
         fastconfig_handle,
         f_row.data(),
-        out_len,
+        &out_len,
         out_result.data()
       );
 
-      return out_result;
+      return result;
     }
 
     // LGBM_BoosterPredictForMat
-    std::vector<double> booster_predict_for_mat(json row, int nrow, int num_features, int num_classes) {
-      int64_t *out_len = new int64_t();
-      std::vector<double> out_result(nrow * num_classes, 0.0);
+    // Returns 0 on success, non-zero on error
+    int booster_predict_for_mat(json row, int nrow, int num_features, int num_classes, std::vector<double>& out_result) {
+      int64_t out_len;
+      out_result.resize(nrow * num_classes, 0.0);
       std::vector<float> f_row;
       for(auto v: row) {
         if(v.is_null()) {
@@ -89,7 +92,7 @@ class LightGBMModel {
         }
       }
 
-      LGBM_BoosterPredictForMat(
+      int result = LGBM_BoosterPredictForMat(
         booster_handle,
         f_row.data(),
         C_API_DTYPE_FLOAT32,
@@ -100,61 +103,57 @@ class LightGBMModel {
         0,
         0,
         "",
-        out_len,
+        &out_len,
         out_result.data()
       );
 
-      return out_result;
+      return result;
     }
 
     // LGBM_BoosterGetNumClasses
-    int booster_get_num_classes() {
-      int result;
-      int num_classes;
-
-      result = LGBM_BoosterGetNumClasses(
+    // Returns 0 on success, non-zero on error
+    int booster_get_num_classes(int* num_classes) {
+      int result = LGBM_BoosterGetNumClasses(
         booster_handle,
-        &num_classes
+        num_classes
       );
 
-      return num_classes;
+      return result;
     }
 
     // LGBM_BoosterGetNumFeatures
-    int booster_get_num_features() {
-      int result;
-      int num_features;
-
-      result = LGBM_BoosterGetNumFeature(
+    // Returns 0 on success, non-zero on error
+    int booster_get_num_features(int* num_features) {
+      int result = LGBM_BoosterGetNumFeature(
         booster_handle,
-        &num_features
+        num_features
       );
 
-      return num_features;
+      return result;
     }
 
     // LGBM_BoosterGetCurrentIteration
-    int booster_get_current_iteration() {
-      int result;
-      int current_iteration;
-
-      result = LGBM_BoosterGetCurrentIteration(
+    // Returns 0 on success, non-zero on error
+    int booster_get_current_iteration(int* current_iteration) {
+      int result = LGBM_BoosterGetCurrentIteration(
         booster_handle,
-        &current_iteration
+        current_iteration
       );
 
-      return current_iteration;
+      return result;
     }
 
     // LGBM_BoosterGetEval
-    std::vector<double> booster_get_eval() {
+    // Returns 0 on success, non-zero on error
+    int booster_get_eval(std::vector<double>& out_result) {
       int result;
       int num_result;
       int eval_count = 0;
 
-      LGBM_BoosterGetEvalCounts(booster_handle, &eval_count);
+      result = LGBM_BoosterGetEvalCounts(booster_handle, &eval_count);
+      if (result != 0) return result;
 
-      std::vector<double> out_result(eval_count, 0.0);
+      out_result.resize(eval_count, 0.0);
 
       result = LGBM_BoosterGetEval(
         booster_handle,
@@ -163,54 +162,58 @@ class LightGBMModel {
         out_result.data()
       );
 
-      return out_result;
+      return result;
     }
 
     // LGBM_BoosterGetLoadedParam
-    std::string booster_get_loaded_param() {
-      int64_t *out_len = new int64_t();
+    // Returns 0 on success, non-zero on error
+    int booster_get_loaded_param(std::string& out_param) {
+      int64_t out_len;
       int64_t buf_len = 1024 * 1024;
-      char* out_str = (char*)malloc(buf_len * sizeof(char));
-      int result;
+      std::vector<char> out_str(buf_len);
 
-      result = LGBM_BoosterGetLoadedParam(
+      int result = LGBM_BoosterGetLoadedParam(
         booster_handle,
         buf_len,
-        out_len,
-        out_str
+        &out_len,
+        out_str.data()
       );
 
-      return std::string(out_str);
+      if (result == 0) {
+        out_param = std::string(out_str.data());
+      }
+
+      return result;
     }
 
     // LGBM_BoosterFeatureImportanceGain
-    std::vector<double> booster_feature_importance_gain(int iteration, int num_features) {
-      std::vector<double> out_result(num_features, 0.0);
-      int result;
+    // Returns 0 on success, non-zero on error
+    int booster_feature_importance_gain(int iteration, int num_features, std::vector<double>& out_result) {
+      out_result.resize(num_features, 0.0);
 
-      result = LGBM_BoosterFeatureImportance(
+      int result = LGBM_BoosterFeatureImportance(
         booster_handle,
         iteration,
         C_API_FEATURE_IMPORTANCE_GAIN,
         out_result.data()
       );
 
-      return out_result;
+      return result;
     }
 
     // LGBM_BoosterFeatureImportanceSplit
-    std::vector<double> booster_feature_importance_split(int iteration, int num_features) {
-      std::vector<double> out_result(num_features, 0.0);
-      int result;
+    // Returns 0 on success, non-zero on error
+    int booster_feature_importance_split(int iteration, int num_features, std::vector<double>& out_result) {
+      out_result.resize(num_features, 0.0);
 
-      result = LGBM_BoosterFeatureImportance(
+      int result = LGBM_BoosterFeatureImportance(
         booster_handle,
         iteration,
         C_API_FEATURE_IMPORTANCE_SPLIT,
         out_result.data()
       );
 
-      return out_result;
+      return result;
     }
 
   private:
@@ -243,10 +246,12 @@ json decode_json(ErlNifEnv* env, const ERL_NIF_TERM arg) {
   unsigned len_f;
   enif_get_list_length(env, arg, &len_f);
   len_f++;
-  char *arg_json = reinterpret_cast<char*>(enif_alloc(len_f));
-  enif_get_string(env, arg, arg_json, len_f, ERL_NIF_LATIN1);
 
-  return json::parse(arg_json);
+  // Use std::vector for automatic memory management (RAII pattern)
+  std::vector<char> arg_json(len_f);
+  enif_get_string(env, arg, arg_json.data(), len_f, ERL_NIF_LATIN1);
+
+  return json::parse(arg_json.data());
 }
 
 std::vector<std::vector<double>> split_vector(std::vector<double> data, int nrow, int ncol) {
@@ -265,148 +270,341 @@ std::vector<std::vector<double>> split_vector(std::vector<double> data, int nrow
 // ==========================
 
 ERL_NIF_TERM booster_create_from_model_file(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
-  void* resource = enif_alloc_resource(ResourceType, sizeof(LightGBMModel));
-  ERL_NIF_TERM handle = enif_make_resource(env, resource);
-  LightGBMModel* model = new(resource) LightGBMModel;
+  try {
+    void* resource = enif_alloc_resource(ResourceType, sizeof(LightGBMModel));
+    ERL_NIF_TERM handle = enif_make_resource(env, resource);
+    LightGBMModel* model = new(resource) LightGBMModel;
 
-  json j = decode_json(env, argv[0]);
-  int result;
+    json j = decode_json(env, argv[0]);
+    int num_iteration;
+    int result = model->booster_create_from_model_file(j["file"], &num_iteration);
 
-  result = model->booster_create_from_model_file(j["file"]);
+    if (result != 0) {
+      // Error occurred - return {:error, error_message}
+      const char* error_msg = LGBM_GetLastError();
+      enif_release_resource(resource);
+      return enif_make_tuple2(
+        env,
+        enif_make_atom(env, "error"),
+        enif_make_string(env, error_msg, ERL_NIF_LATIN1)
+      );
+    }
 
-  enif_release_resource(resource);
+    enif_release_resource(resource);
 
-  // Segmentation fault is occured when returns tuple3 {:ok, result, handle}
-  return enif_make_tuple2(
-    env,
-    enif_make_atom(env, "ok"),
-    handle
-  );
+    // Success - return {:ok, handle}
+    return enif_make_tuple2(
+      env,
+      enif_make_atom(env, "ok"),
+      handle
+    );
+  } catch (const std::exception& e) {
+    return enif_make_tuple2(
+      env,
+      enif_make_atom(env, "error"),
+      enif_make_string(env, (std::string("Exception: ") + e.what()).c_str(), ERL_NIF_LATIN1)
+    );
+  } catch (...) {
+    return enif_make_tuple2(
+      env,
+      enif_make_atom(env, "error"),
+      enif_make_string(env, "Unknown exception occurred", ERL_NIF_LATIN1)
+    );
+  }
 }
 
 ERL_NIF_TERM booster_predict_for_mat_single_row(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
-  LightGBMModel* model = load_model(env, argv[0]);
+  try {
+    LightGBMModel* model = load_model(env, argv[0]);
 
-  json j = decode_json(env, argv[1]);
-  std::vector<double> result;
+    json j = decode_json(env, argv[1]);
+    std::vector<double> result;
+    int num_classes, num_features;
 
-  int num_classes = model->booster_get_num_classes();
-  int num_features = model->booster_get_num_features();
-  result = model->booster_predict_for_mat_single_row(
-    j["row"],
-    num_features,
-    num_classes
-  );
+    int ret_code = model->booster_get_num_classes(&num_classes);
+    if (ret_code != 0) {
+      json err_j;
+      err_j["error"] = LGBM_GetLastError();
+      return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+    }
 
-  json ret_j;
-  ret_j["num_features"] = num_features;
-  ret_j["result"] = result;
+    ret_code = model->booster_get_num_features(&num_features);
+    if (ret_code != 0) {
+      json err_j;
+      err_j["error"] = LGBM_GetLastError();
+      return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+    }
 
-  return enif_make_string(env, ret_j.dump().c_str(), ERL_NIF_LATIN1);
+    ret_code = model->booster_predict_for_mat_single_row(
+      j["row"],
+      num_features,
+      num_classes,
+      result
+    );
+    if (ret_code != 0) {
+      json err_j;
+      err_j["error"] = LGBM_GetLastError();
+      return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+    }
+
+    json ret_j;
+    ret_j["num_features"] = num_features;
+    ret_j["result"] = result;
+
+    return enif_make_string(env, ret_j.dump().c_str(), ERL_NIF_LATIN1);
+  } catch (const std::exception& e) {
+    json err_j;
+    err_j["error"] = std::string("Exception: ") + e.what();
+    return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+  } catch (...) {
+    json err_j;
+    err_j["error"] = "Unknown exception occurred";
+    return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+  }
 }
 
 ERL_NIF_TERM booster_predict_for_mat(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
-  LightGBMModel* model = load_model(env, argv[0]);
+  try {
+    LightGBMModel* model = load_model(env, argv[0]);
 
-  json j = decode_json(env, argv[1]);
-  std::vector<double> result;
+    json j = decode_json(env, argv[1]);
+    std::vector<double> result;
+    int num_classes, num_features;
 
-  int num_classes = model->booster_get_num_classes();
-  int num_features = model->booster_get_num_features();
-  result = model->booster_predict_for_mat(
-    j["row"],
-    j["nrow"],
-    num_features,
-    num_classes
-  );
+    int ret_code = model->booster_get_num_classes(&num_classes);
+    if (ret_code != 0) {
+      json err_j;
+      err_j["error"] = LGBM_GetLastError();
+      return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+    }
 
-  json ret_j;
-  ret_j["num_classes"] = num_classes;
-  ret_j["num_features"] = num_features;
-  ret_j["result"] = split_vector(result, j["nrow"], num_classes);
+    ret_code = model->booster_get_num_features(&num_features);
+    if (ret_code != 0) {
+      json err_j;
+      err_j["error"] = LGBM_GetLastError();
+      return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+    }
 
-  return enif_make_string(env, ret_j.dump().c_str(), ERL_NIF_LATIN1);
+    ret_code = model->booster_predict_for_mat(
+      j["row"],
+      j["nrow"],
+      num_features,
+      num_classes,
+      result
+    );
+    if (ret_code != 0) {
+      json err_j;
+      err_j["error"] = LGBM_GetLastError();
+      return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+    }
+
+    json ret_j;
+    ret_j["num_classes"] = num_classes;
+    ret_j["num_features"] = num_features;
+    ret_j["result"] = split_vector(result, j["nrow"], num_classes);
+
+    return enif_make_string(env, ret_j.dump().c_str(), ERL_NIF_LATIN1);
+  } catch (const std::exception& e) {
+    json err_j;
+    err_j["error"] = std::string("Exception: ") + e.what();
+    return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+  } catch (...) {
+    json err_j;
+    err_j["error"] = "Unknown exception occurred";
+    return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+  }
 }
 
 ERL_NIF_TERM booster_get_num_classes(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
-  LightGBMModel* model = load_model(env, argv[0]);
+  try {
+    LightGBMModel* model = load_model(env, argv[0]);
 
-  int result = model->booster_get_num_classes();
+    int num_classes;
+    int ret_code = model->booster_get_num_classes(&num_classes);
 
-  json ret_j;
-  ret_j["result"] = result;
+    if (ret_code != 0) {
+      json err_j;
+      err_j["error"] = LGBM_GetLastError();
+      return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+    }
 
-  return enif_make_string(env, ret_j.dump().c_str(), ERL_NIF_LATIN1);
+    json ret_j;
+    ret_j["result"] = num_classes;
+
+    return enif_make_string(env, ret_j.dump().c_str(), ERL_NIF_LATIN1);
+  } catch (const std::exception& e) {
+    json err_j;
+    err_j["error"] = std::string("Exception: ") + e.what();
+    return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+  } catch (...) {
+    json err_j;
+    err_j["error"] = "Unknown exception occurred";
+    return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+  }
 }
 
 ERL_NIF_TERM booster_get_num_features(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
-  LightGBMModel* model = load_model(env, argv[0]);
+  try {
+    LightGBMModel* model = load_model(env, argv[0]);
 
-  int result = model->booster_get_num_features();
+    int num_features;
+    int ret_code = model->booster_get_num_features(&num_features);
 
-  json ret_j;
-  ret_j["result"] = result;
+    if (ret_code != 0) {
+      json err_j;
+      err_j["error"] = LGBM_GetLastError();
+      return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+    }
 
-  return enif_make_string(env, ret_j.dump().c_str(), ERL_NIF_LATIN1);
+    json ret_j;
+    ret_j["result"] = num_features;
+
+    return enif_make_string(env, ret_j.dump().c_str(), ERL_NIF_LATIN1);
+  } catch (const std::exception& e) {
+    json err_j;
+    err_j["error"] = std::string("Exception: ") + e.what();
+    return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+  } catch (...) {
+    json err_j;
+    err_j["error"] = "Unknown exception occurred";
+    return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+  }
 }
 
 ERL_NIF_TERM booster_get_current_iteration(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
-  LightGBMModel* model = load_model(env, argv[0]);
+  try {
+    LightGBMModel* model = load_model(env, argv[0]);
 
-  int result = model->booster_get_current_iteration();
+    int current_iteration;
+    int ret_code = model->booster_get_current_iteration(&current_iteration);
 
-  json ret_j;
-  ret_j["result"] = result;
+    if (ret_code != 0) {
+      json err_j;
+      err_j["error"] = LGBM_GetLastError();
+      return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+    }
 
-  return enif_make_string(env, ret_j.dump().c_str(), ERL_NIF_LATIN1);
+    json ret_j;
+    ret_j["result"] = current_iteration;
+
+    return enif_make_string(env, ret_j.dump().c_str(), ERL_NIF_LATIN1);
+  } catch (const std::exception& e) {
+    json err_j;
+    err_j["error"] = std::string("Exception: ") + e.what();
+    return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+  } catch (...) {
+    json err_j;
+    err_j["error"] = "Unknown exception occurred";
+    return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+  }
 }
 
 ERL_NIF_TERM booster_get_eval(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
-  LightGBMModel* model = load_model(env, argv[0]);
-  std::vector<double> result;
+  try {
+    LightGBMModel* model = load_model(env, argv[0]);
+    std::vector<double> result;
 
-  result = model->booster_get_eval();
+    int ret_code = model->booster_get_eval(result);
 
-  json ret_j;
-  ret_j["result"] = result;
+    if (ret_code != 0) {
+      json err_j;
+      err_j["error"] = LGBM_GetLastError();
+      return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+    }
 
-  return enif_make_string(env, ret_j.dump().c_str(), ERL_NIF_LATIN1);
+    json ret_j;
+    ret_j["result"] = result;
+
+    return enif_make_string(env, ret_j.dump().c_str(), ERL_NIF_LATIN1);
+  } catch (const std::exception& e) {
+    json err_j;
+    err_j["error"] = std::string("Exception: ") + e.what();
+    return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+  } catch (...) {
+    json err_j;
+    err_j["error"] = "Unknown exception occurred";
+    return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+  }
 }
 
 ERL_NIF_TERM booster_get_loaded_param(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
-  LightGBMModel* model = load_model(env, argv[0]);
+  try {
+    LightGBMModel* model = load_model(env, argv[0]);
 
-  std::string result = model->booster_get_loaded_param();
+    std::string result;
+    int ret_code = model->booster_get_loaded_param(result);
 
-  json ret_j;
-  ret_j["result"] = result;
+    if (ret_code != 0) {
+      json err_j;
+      err_j["error"] = LGBM_GetLastError();
+      return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+    }
 
-  return enif_make_string(env, ret_j.dump().c_str(), ERL_NIF_LATIN1);
+    json ret_j;
+    ret_j["result"] = result;
+
+    return enif_make_string(env, ret_j.dump().c_str(), ERL_NIF_LATIN1);
+  } catch (const std::exception& e) {
+    json err_j;
+    err_j["error"] = std::string("Exception: ") + e.what();
+    return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+  } catch (...) {
+    json err_j;
+    err_j["error"] = "Unknown exception occurred";
+    return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+  }
 }
 
 ERL_NIF_TERM booster_feature_importance(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
-  LightGBMModel* model = load_model(env, argv[0]);
-  int num_features = model->booster_get_num_features();
-  int iteration = model->booster_get_current_iteration();
+  try {
+    LightGBMModel* model = load_model(env, argv[0]);
+    int num_features, iteration;
 
-  std::vector<double> result_split;
-  std::vector<double> result_gain;
-  result_split = model->booster_feature_importance_split(iteration, num_features);
-  result_gain = model->booster_feature_importance_gain(iteration, num_features);
+    int ret_code = model->booster_get_num_features(&num_features);
+    if (ret_code != 0) {
+      json err_j;
+      err_j["error"] = LGBM_GetLastError();
+      return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+    }
 
-  json ret_j;
-  ret_j["iteration"] = iteration;
-  ret_j["num_features"] = num_features;
-  ret_j["result"] = {result_split, result_gain};
+    ret_code = model->booster_get_current_iteration(&iteration);
+    if (ret_code != 0) {
+      json err_j;
+      err_j["error"] = LGBM_GetLastError();
+      return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+    }
 
-  return enif_make_string(env, ret_j.dump().c_str(), ERL_NIF_LATIN1);
-}
+    std::vector<double> result_split, result_gain;
 
-ERL_NIF_TERM booster_free(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
-  enif_free_env(env);
+    ret_code = model->booster_feature_importance_split(iteration, num_features, result_split);
+    if (ret_code != 0) {
+      json err_j;
+      err_j["error"] = LGBM_GetLastError();
+      return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+    }
 
-  ERL_NIF_TERM ret = -1;
-  return ret;
+    ret_code = model->booster_feature_importance_gain(iteration, num_features, result_gain);
+    if (ret_code != 0) {
+      json err_j;
+      err_j["error"] = LGBM_GetLastError();
+      return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+    }
+
+    json ret_j;
+    ret_j["iteration"] = iteration;
+    ret_j["num_features"] = num_features;
+    ret_j["result"] = {result_split, result_gain};
+
+    return enif_make_string(env, ret_j.dump().c_str(), ERL_NIF_LATIN1);
+  } catch (const std::exception& e) {
+    json err_j;
+    err_j["error"] = std::string("Exception: ") + e.what();
+    return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+  } catch (...) {
+    json err_j;
+    err_j["error"] = "Unknown exception occurred";
+    return enif_make_string(env, err_j.dump().c_str(), ERL_NIF_LATIN1);
+  }
 }
 
 static ErlNifFunc nif_funcs[] = {
@@ -418,8 +616,7 @@ static ErlNifFunc nif_funcs[] = {
   {"booster_get_current_iteration", 1, booster_get_current_iteration},
   {"booster_get_eval", 1, booster_get_eval},
   {"booster_get_loaded_param", 1, booster_get_loaded_param},
-  {"booster_feature_importance", 1, booster_feature_importance},
-  {"booster_free", 1, booster_free}
+  {"booster_feature_importance", 1, booster_feature_importance}
 };
 
 ERL_NIF_INIT(Elixir.LgbmEx.NIF, nif_funcs, nif_load, nullptr, nullptr, nullptr);
