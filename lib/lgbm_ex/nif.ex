@@ -63,8 +63,4 @@ defmodule LgbmEx.NIF do
   """
   def booster_feature_importance(_reference), do: :erlang.nif_error(:nif_not_loaded)
 
-  @doc """
-  Free booster.
-  """
-  def booster_free(_reference), do: :erlang.nif_error(:nif_not_loaded)
 end

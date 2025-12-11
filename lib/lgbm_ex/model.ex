@@ -160,14 +160,6 @@ defmodule LgbmEx.Model do
 
   defp clear_ref(model), do: Map.put(model, :ref, nil)
 
-  # defp clear_ref(%{ref: nil} = model), do: model
-  #
-  # defp clear_ref(%{ref: ref} = model) do
-  #   NIFAPI.call(:booster_free, ref)
-  #   # => Segmentation fault
-  #   Map.put(model, :ref, nil)
-  # end
-
   defp put_parameters(model) do
     Map.put(model, :parameters,
       task: "train",
